@@ -228,7 +228,7 @@ export const MenuGenerator: React.FC = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const dayData = planData.menu_data[day];
       days.push(
-        <div key={day} className="p-2 border rounded-lg bg-white min-h-[120px]">
+        <div key={day} className="p-2 border rounded-lg bg-white min-h-[88px] sm:min-h-[120px]">
           <div className="font-semibold text-sm mb-1">{day}</div>
           {dayData && (
             <div className="space-y-1 text-xs">
@@ -257,13 +257,15 @@ export const MenuGenerator: React.FC = () => {
     }
     
     return (
-      <div className="grid grid-cols-7 gap-2">
-        {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
-          <div key={day} className="p-2 text-center font-semibold bg-gray-100 rounded">
-            {day}
-          </div>
-        ))}
-        {days}
+      <div className="overflow-x-auto -mx-2 px-2">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 min-w-[640px]">
+          {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
+            <div key={day} className="p-2 text-center font-semibold bg-gray-100 rounded text-xs sm:text-sm">
+              {day}
+            </div>
+          ))}
+          {days}
+        </div>
       </div>
     );
   };

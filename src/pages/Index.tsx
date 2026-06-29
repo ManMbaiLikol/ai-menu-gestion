@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { AuthForm } from '@/components/AuthForm';
-import { MenuUpload } from '@/components/MenuUpload';
-import { MenuGenerator } from '@/components/MenuGenerator';
-import { PriceManager } from '@/components/PriceManager';
-import { MenuLibrary } from '@/components/MenuLibrary';
+// Chargement à la demande des onglets : le bundle initial reste léger,
+// chaque onglet n'est téléchargé qu'à son ouverture (ouverture + rapide sur mobile).
+const MenuUpload = lazy(() => import('@/components/MenuUpload').then(m => ({ default: m.MenuUpload })));
+const MenuGenerator = lazy(() => import('@/components/MenuGenerator').then(m => ({ default: m.MenuGenerator })));
+const PriceManager = lazy(() => import('@/components/PriceManager').then(m => ({ default: m.PriceManager })));
+const MenuLibrary = lazy(() => import('@/components/MenuLibrary').then(m => ({ default: m.MenuLibrary })));
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +46,12 @@ const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
+
+const TabFallback = () => (
+  <div className="flex justify-center py-12">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600" />
+  </div>
+);
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -111,7 +119,7 @@ const Index = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const dayData = plan.menu_data?.[day];
       cells.push(
-        <div key={day} className="p-2 border rounded-lg bg-white min-h-[120px]">
+        <div key={day} className="p-2 border rounded-lg bg-white min-h-[88px] sm:min-h-[120px]">
           <div className="font-semibold text-sm mb-1">{day}</div>
           {dayData && (
             <div className="space-y-1 text-xs">
@@ -140,13 +148,15 @@ const Index = () => {
     }
 
     return (
-      <div className="grid grid-cols-7 gap-2">
-        {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(d => (
-          <div key={d} className="p-2 text-center font-semibold bg-gray-100 rounded">
-            {d}
-          </div>
-        ))}
-        {cells}
+      <div className="overflow-x-auto -mx-2 px-2">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 min-w-[640px]">
+          {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(d => (
+            <div key={d} className="p-2 text-center font-semibold bg-gray-100 rounded text-xs sm:text-sm">
+              {d}
+            </div>
+          ))}
+          {cells}
+        </div>
       </div>
     );
   };
@@ -184,16 +194,16 @@ const Index = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-700">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 min-w-0">
+                <User className="h-4 w-4 text-gray-500 shrink-0" />
+                <span className="text-sm text-gray-700 truncate max-w-[110px] sm:max-w-none">
                   {user.user_metadata?.full_name || user.email}
                 </span>
               </div>
-              <Button variant="outline" onClick={signOut} className="flex items-center gap-2">
+              <Button variant="outline" onClick={signOut} className="flex items-center gap-2 shrink-0">
                 <LogOut className="h-4 w-4" />
-                Déconnexion
+                <span className="hidden sm:inline">Déconnexion</span>
               </Button>
             </div>
           </div>
@@ -252,19 +262,19 @@ const Index = () => {
 
           {/* Tab Contents */}
           <TabsContent value="upload" className="space-y-6">
-            <MenuUpload />
+            <Suspense fallback={<TabFallback />}><MenuUpload /></Suspense>
           </TabsContent>
 
           <TabsContent value="library" className="space-y-6">
-            <MenuLibrary />
+            <Suspense fallback={<TabFallback />}><MenuLibrary /></Suspense>
           </TabsContent>
 
           <TabsContent value="generator" className="space-y-6">
-            <MenuGenerator />
+            <Suspense fallback={<TabFallback />}><MenuGenerator /></Suspense>
           </TabsContent>
 
           <TabsContent value="prices" className="space-y-6">
-            <PriceManager />
+            <Suspense fallback={<TabFallback />}><PriceManager /></Suspense>
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-6">
