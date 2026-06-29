@@ -1,12 +1,12 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { AuthForm } from '@/components/AuthForm';
-// Chargement à la demande des onglets : le bundle initial reste léger,
-// chaque onglet n'est téléchargé qu'à son ouverture (ouverture + rapide sur mobile).
-const MenuUpload = lazy(() => import('@/components/MenuUpload').then(m => ({ default: m.MenuUpload })));
-const MenuGenerator = lazy(() => import('@/components/MenuGenerator').then(m => ({ default: m.MenuGenerator })));
-const PriceManager = lazy(() => import('@/components/PriceManager').then(m => ({ default: m.PriceManager })));
-const MenuLibrary = lazy(() => import('@/components/MenuLibrary').then(m => ({ default: m.MenuLibrary })));
+// Imports statiques (pas d'import() dynamique) pour rester compatible avec les
+// navigateurs plus anciens (certaines tablettes ne supportent pas l'import dynamique).
+import { MenuUpload } from '@/components/MenuUpload';
+import { MenuGenerator } from '@/components/MenuGenerator';
+import { PriceManager } from '@/components/PriceManager';
+import { MenuLibrary } from '@/components/MenuLibrary';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,12 +46,6 @@ const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
-
-const TabFallback = () => (
-  <div className="flex justify-center py-12">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600" />
-  </div>
-);
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -262,19 +256,19 @@ const Index = () => {
 
           {/* Tab Contents */}
           <TabsContent value="upload" className="space-y-6">
-            <Suspense fallback={<TabFallback />}><MenuUpload /></Suspense>
+            <MenuUpload />
           </TabsContent>
 
           <TabsContent value="library" className="space-y-6">
-            <Suspense fallback={<TabFallback />}><MenuLibrary /></Suspense>
+            <MenuLibrary />
           </TabsContent>
 
           <TabsContent value="generator" className="space-y-6">
-            <Suspense fallback={<TabFallback />}><MenuGenerator /></Suspense>
+            <MenuGenerator />
           </TabsContent>
 
           <TabsContent value="prices" className="space-y-6">
-            <Suspense fallback={<TabFallback />}><PriceManager /></Suspense>
+            <PriceManager />
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-6">
