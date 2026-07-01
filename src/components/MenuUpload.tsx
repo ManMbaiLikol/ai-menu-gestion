@@ -65,18 +65,33 @@ export const MenuUpload: React.FC = () => {
   }, []);
 
   const addIngredient = () => {
-    if (newIngredient.name && newIngredient.quantity > 0) {
-      setMenuData(prev => ({
-        ...prev,
-        ingredients: [...prev.ingredients, { ...newIngredient }]
-      }));
-      setNewIngredient({
-        name: '',
-        quantity: 0,
-        unit: 'kg',
-        estimatedCost: 0
+    if (!newIngredient.name.trim()) {
+      toast({
+        title: "Nom manquant",
+        description: "Indiquez le nom de l'ingrédient avant de l'ajouter",
+        variant: "destructive",
       });
+      return;
     }
+    if (!(newIngredient.quantity > 0)) {
+      toast({
+        title: "Quantité manquante",
+        description: "Indiquez une quantité supérieure à 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setMenuData(prev => ({
+      ...prev,
+      ingredients: [...prev.ingredients, { ...newIngredient, name: newIngredient.name.trim() }]
+    }));
+    setNewIngredient({
+      name: '',
+      quantity: 0,
+      unit: 'kg',
+      estimatedCost: 0
+    });
   };
 
   const removeIngredient = (index: number) => {
@@ -412,7 +427,7 @@ export const MenuUpload: React.FC = () => {
                 type="number"
                 min="1"
                 value={menuData.servingSize}
-                onChange={(e) => setMenuData(prev => ({ ...prev, servingSize: parseInt(e.target.value) }))}
+                onChange={(e) => setMenuData(prev => ({ ...prev, servingSize: parseInt(e.target.value) || 1 }))}
               />
             </div>
             <div className="space-y-2">
@@ -438,7 +453,7 @@ export const MenuUpload: React.FC = () => {
                 type="number"
                 min="5"
                 value={menuData.preparationTime}
-                onChange={(e) => setMenuData(prev => ({ ...prev, preparationTime: parseInt(e.target.value) }))}
+                onChange={(e) => setMenuData(prev => ({ ...prev, preparationTime: parseInt(e.target.value) || 0 }))}
               />
             </div>
           </div>

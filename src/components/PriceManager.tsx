@@ -32,6 +32,69 @@ interface PriceHistory {
   inflation_rate: number;
 }
 
+// Dialogue d'édition de prix contrôlé (état local propre à chaque ingrédient).
+// Remplace l'ancien `document.querySelector('input[type=number]')` qui ciblait
+// par erreur le premier champ numérique de la page (celui du formulaire d'ajout).
+const PriceEditDialog: React.FC<{
+  ingredient: Ingredient;
+  loading: boolean;
+  onUpdate: (ingredient: Ingredient, newPrice: number) => Promise<void>;
+}> = ({ ingredient, loading, onUpdate }) => {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState('');
+
+  const submit = async () => {
+    const newPrice = parseFloat(value);
+    if (!(newPrice > 0)) {
+      toast({
+        title: 'Prix invalide',
+        description: 'Saisissez un prix supérieur à 0',
+        variant: 'destructive',
+      });
+      return;
+    }
+    await onUpdate(ingredient, newPrice);
+    setOpen(false);
+    setValue('');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setValue(''); }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Edit className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Modifier le prix - {ingredient.name}</DialogTitle>
+          <DialogDescription>
+            Prix actuel: {ingredient.current_price} FCFA par {ingredient.unit}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Nouveau prix (FCFA)</Label>
+            <Input
+              type="number"
+              autoFocus
+              value={value}
+              placeholder={ingredient.current_price.toString()}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submit();
+              }}
+            />
+          </div>
+          <Button onClick={submit} disabled={loading} className="w-full">
+            Mettre à jour le prix
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export const PriceManager: React.FC = () => {
   const { user } = useAuth();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
@@ -384,52 +447,12 @@ export const PriceManager: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Modifier le prix - {ingredient.name}</DialogTitle>
-                              <DialogDescription>
-                                Prix actuel: {ingredient.current_price} FCFA par {ingredient.unit}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label>Nouveau prix (FCFA)</Label>
-                                <Input
-                                  type="number"
-                                  placeholder={ingredient.current_price.toString()}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      const newPrice = parseFloat((e.target as HTMLInputElement).value);
-                                      if (newPrice > 0) {
-                                        updateIngredientPrice(ingredient, newPrice);
-                                      }
-                                    }
-                                  }}
-                                />
-                              </div>
-                              <Button
-                                onClick={() => {
-                                  const input = document.querySelector('input[type="number"]') as HTMLInputElement;
-                                  const newPrice = parseFloat(input.value);
-                                  if (newPrice > 0) {
-                                    updateIngredientPrice(ingredient, newPrice);
-                                  }
-                                }}
-                                disabled={loading}
-                                className="w-full"
-                              >
-                                Mettre à jour le prix
-                              </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                        
+                        <PriceEditDialog
+                          ingredient={ingredient}
+                          loading={loading}
+                          onUpdate={updateIngredientPrice}
+                        />
+
                         <Button
                           variant="outline"
                           size="sm"

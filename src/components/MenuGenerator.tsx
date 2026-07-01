@@ -5,7 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Shuffle, Filter, DollarSign, Users, Clock } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Calendar, Shuffle, Filter, DollarSign, Users, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
@@ -51,7 +58,17 @@ export const MenuGenerator: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [generatedPlan, setGeneratedPlan] = useState<any>(null);
-  
+  // id du plan sauvegardé actuellement chargé (null = plan généré non encore sauvegardé)
+  const [loadedPlanId, setLoadedPlanId] = useState<string | null>(null);
+  // jour en cours d'édition dans le calendrier (null = aucun dialogue ouvert)
+  const [editingDay, setEditingDay] = useState<number | null>(null);
+  // brouillon de sélection pour le dialogue d'édition d'un jour
+  const [dayDraft, setDayDraft] = useState<{ breakfast: string; lunch: string; dinner: string }>({
+    breakfast: 'none',
+    lunch: 'none',
+    dinner: 'none',
+  });
+
   const [filters, setFilters] = useState<GeneratorFilters>({
     budgetMin: 0,
     budgetMax: 50000,
@@ -156,6 +173,7 @@ export const MenuGenerator: React.FC = () => {
       };
 
       setGeneratedPlan(planData);
+      setLoadedPlanId(null);
 
       toast({
         title: "Plan mensuel optimisé !",
@@ -177,23 +195,51 @@ export const MenuGenerator: React.FC = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('monthly_menu_plans')
-        .insert({
-          user_id: user.id,
-          ...generatedPlan
+      if (loadedPlanId) {
+        // Mise à jour d'un plan déjà sauvegardé (édité depuis le calendrier)
+        const { error } = await supabase
+          .from('monthly_menu_plans')
+          .update({
+            menu_data: generatedPlan.menu_data,
+            total_estimated_cost: generatedPlan.total_estimated_cost,
+            serving_size: generatedPlan.serving_size,
+            budget_min: generatedPlan.budget_min,
+            budget_max: generatedPlan.budget_max,
+            dietary_restrictions: generatedPlan.dietary_restrictions,
+          })
+          .eq('id', loadedPlanId)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Plan mis à jour",
+          description: "Vos modifications ont été enregistrées",
         });
+      } else {
+        // Création d'un nouveau plan
+        const { data, error } = await supabase
+          .from('monthly_menu_plans')
+          .insert({
+            user_id: user.id,
+            ...generatedPlan,
+          })
+          .select('id')
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Plan sauvegardé",
-        description: "Votre plan mensuel a été sauvegardé avec succès",
-      });
+        // On garde le plan affiché (désormais lié à sa ligne en base) pour
+        // permettre l'édition immédiate par jour.
+        setLoadedPlanId(data.id);
+
+        toast({
+          title: "Plan sauvegardé",
+          description: "Votre plan mensuel a été sauvegardé avec succès",
+        });
+      }
 
       fetchMonthlyPlans();
-      setGeneratedPlan(null);
-
     } catch (error: any) {
       toast({
         title: "Erreur lors de la sauvegarde",
@@ -205,6 +251,83 @@ export const MenuGenerator: React.FC = () => {
     }
   };
 
+  // Charge un plan sauvegardé dans la vue calendrier éditable (corrige le clic sans effet).
+  const openSavedPlan = (plan: MonthlyPlan) => {
+    setSelectedMonth(plan.month);
+    setSelectedYear(plan.year);
+    setGeneratedPlan({
+      month: plan.month,
+      year: plan.year,
+      budget_min: plan.budget_min,
+      budget_max: plan.budget_max,
+      serving_size: plan.serving_size,
+      dietary_restrictions: plan.dietary_restrictions ?? [],
+      menu_data: plan.menu_data ?? {},
+      total_estimated_cost: plan.total_estimated_cost,
+    });
+    setLoadedPlanId(plan.id);
+    // Remonte vers la vue du plan
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Recalcule le coût total du mois à partir des coûts journaliers.
+  const recomputeTotal = (menuData: any) =>
+    Object.values(menuData).reduce(
+      (sum: number, d: any) => sum + (Number(d?.totalDayCost) || 0),
+      0,
+    );
+
+  // Ouvre le dialogue d'édition d'un jour, pré-rempli avec le contenu existant.
+  const openDayEditor = (day: number) => {
+    const dayData = generatedPlan?.menu_data?.[day] ?? {};
+    setDayDraft({
+      breakfast: dayData.breakfast?.id ?? 'none',
+      lunch: dayData.lunch?.id ?? 'none',
+      dinner: dayData.dinner?.id ?? 'none',
+    });
+    setEditingDay(day);
+  };
+
+  // Construit l'entrée d'un créneau à partir d'un menu sélectionné.
+  const slotFromMenu = (menuId: string) => {
+    if (menuId === 'none') return null;
+    const menu = menus.find(m => m.id === menuId);
+    if (!menu) return null;
+    return {
+      id: menu.id,
+      name: menu.name,
+      cost: Number(menu.total_cost) || 0,
+      cuisine_type: menu.cuisine_type,
+    };
+  };
+
+  // Enregistre les modifications du jour dans le plan courant + recalcule les totaux.
+  const saveDayEditor = () => {
+    if (editingDay == null || !generatedPlan) return;
+
+    const breakfast = slotFromMenu(dayDraft.breakfast);
+    const lunch = slotFromMenu(dayDraft.lunch);
+    const dinner = slotFromMenu(dayDraft.dinner);
+    const totalDayCost =
+      (breakfast?.cost ?? 0) + (lunch?.cost ?? 0) + (dinner?.cost ?? 0);
+
+    const newMenuData = { ...(generatedPlan.menu_data ?? {}) };
+    if (!breakfast && !lunch && !dinner) {
+      delete newMenuData[editingDay];
+    } else {
+      newMenuData[editingDay] = { breakfast, lunch, dinner, totalDayCost };
+    }
+
+    setGeneratedPlan({
+      ...generatedPlan,
+      menu_data: newMenuData,
+      total_estimated_cost: recomputeTotal(newMenuData),
+    });
+    setEditingDay(null);
+  };
+
   const getMonthName = (month: number) => {
     const months = [
       'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -214,48 +337,61 @@ export const MenuGenerator: React.FC = () => {
   };
 
   const renderCalendarView = (planData: any) => {
-    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-    const firstDayOfWeek = new Date(selectedYear, selectedMonth - 1, 1).getDay();
-    
+    const month = planData.month ?? selectedMonth;
+    const year = planData.year ?? selectedYear;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+
     const days = [];
-    
+
     // Jours vides au début
     for (let i = 0; i < firstDayOfWeek; i++) {
       days.push(<div key={`empty-${i}`} className="p-2"></div>);
     }
-    
-    // Jours du mois
+
+    // Jours du mois — cliquables pour éditer le menu du jour
     for (let day = 1; day <= daysInMonth; day++) {
-      const dayData = planData.menu_data[day];
+      const dayData = planData.menu_data?.[day];
       days.push(
-        <div key={day} className="p-2 border rounded-lg bg-white min-h-[88px] sm:min-h-[120px]">
-          <div className="font-semibold text-sm mb-1">{day}</div>
-          {dayData && (
+        <button
+          type="button"
+          key={day}
+          onClick={() => openDayEditor(day)}
+          title="Cliquer pour modifier le menu de ce jour"
+          className="group relative text-left p-2 border rounded-lg bg-white min-h-[88px] sm:min-h-[120px] hover:border-orange-400 hover:shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-semibold text-sm">{day}</span>
+            <Pencil className="h-3 w-3 text-gray-300 group-hover:text-orange-500" />
+          </div>
+          {dayData ? (
             <div className="space-y-1 text-xs">
               {dayData.breakfast && (
-                <div className="bg-yellow-100 p-1 rounded text-yellow-800">
-                  🌅 {dayData.breakfast.name.substring(0, 15)}...
+                <div className="bg-yellow-100 p-1 rounded text-yellow-800 truncate">
+                  🌅 {dayData.breakfast.name}
                 </div>
               )}
               {dayData.lunch && (
-                <div className="bg-orange-100 p-1 rounded text-orange-800">
-                  🌞 {dayData.lunch.name.substring(0, 15)}...
+                <div className="bg-orange-100 p-1 rounded text-orange-800 truncate">
+                  🌞 {dayData.lunch.name}
                 </div>
               )}
               {dayData.dinner && (
-                <div className="bg-blue-100 p-1 rounded text-blue-800">
-                  🌙 {dayData.dinner.name.substring(0, 15)}...
+                <div className="bg-blue-100 p-1 rounded text-blue-800 truncate">
+                  🌙 {dayData.dinner.name}
                 </div>
               )}
               <div className="text-green-600 font-semibold">
                 {dayData.totalDayCost} FCFA
               </div>
             </div>
+          ) : (
+            <span className="text-[11px] text-gray-400 group-hover:text-orange-500">+ Ajouter</span>
           )}
-        </div>
+        </button>
       );
     }
-    
+
     return (
       <div className="overflow-x-auto -mx-2 px-2">
         <div className="grid grid-cols-7 gap-1 sm:gap-2 min-w-[640px]">
@@ -368,9 +504,9 @@ export const MenuGenerator: React.FC = () => {
             </Button>
             
             {generatedPlan && (
-              <Button onClick={saveMonthlyPlan} variant="outline" className="flex items-center gap-2">
+              <Button onClick={saveMonthlyPlan} disabled={loading} variant="outline" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                Sauvegarder le Plan
+                {loadedPlanId ? 'Mettre à jour le Plan' : 'Sauvegarder le Plan'}
               </Button>
             )}
           </div>
@@ -394,6 +530,11 @@ export const MenuGenerator: React.FC = () => {
                 </Badge>
               </div>
             </CardTitle>
+            <CardDescription>
+              {loadedPlanId
+                ? 'Plan sauvegardé — cliquez sur une date pour modifier son menu, puis « Mettre à jour le Plan ».'
+                : 'Cliquez sur une date pour ajuster son menu avant de sauvegarder.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {renderCalendarView(generatedPlan)}
@@ -417,7 +558,13 @@ export const MenuGenerator: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {monthlyPlans.map((plan) => (
-                <Card key={plan.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <Card
+                  key={plan.id}
+                  onClick={() => openSavedPlan(plan)}
+                  className={`cursor-pointer hover:shadow-md transition-shadow ${
+                    loadedPlanId === plan.id ? 'ring-2 ring-orange-400' : ''
+                  }`}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">
@@ -444,6 +591,74 @@ export const MenuGenerator: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialogue d'édition du menu d'un jour */}
+      <Dialog open={editingDay != null} onOpenChange={(o) => { if (!o) setEditingDay(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Menu du {editingDay} {generatedPlan ? getMonthName(generatedPlan.month) : ''}{' '}
+              {generatedPlan?.year}
+            </DialogTitle>
+            <DialogDescription>
+              Choisissez les plats pour chaque repas. Le coût du jour est recalculé automatiquement.
+            </DialogDescription>
+          </DialogHeader>
+
+          {menus.length === 0 ? (
+            <p className="text-sm text-gray-500 py-4">
+              Aucun menu disponible. Créez d'abord des menus dans l'onglet « Analyser Menu ».
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {([
+                { key: 'breakfast', label: '🌅 Petit-déjeuner', mealType: 'petit-déjeuner' },
+                { key: 'lunch', label: '🌞 Déjeuner', mealType: 'déjeuner' },
+                { key: 'dinner', label: '🌙 Dîner', mealType: 'dîner' },
+              ] as const).map(slot => {
+                const options = menus.filter(m => m.meal_type === slot.mealType);
+                return (
+                  <div key={slot.key} className="space-y-2">
+                    <Label>{slot.label}</Label>
+                    <Select
+                      value={dayDraft[slot.key]}
+                      onValueChange={(value) =>
+                        setDayDraft(prev => ({ ...prev, [slot.key]: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choisir un plat" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Aucun</SelectItem>
+                        {options.map(m => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.name} — {Number(m.total_cost) || 0} FCFA
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {options.length === 0 && (
+                      <p className="text-xs text-gray-400">
+                        Aucun menu de type « {slot.mealType} » disponible.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setEditingDay(null)}>
+                  Annuler
+                </Button>
+                <Button onClick={saveDayEditor}>
+                  Valider le jour
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
