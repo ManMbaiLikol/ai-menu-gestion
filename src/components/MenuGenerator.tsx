@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,15 @@ import { Calendar, Shuffle, Filter, DollarSign, Users, Pencil, Sparkles } from '
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
+
+// Créneaux de repas disponibles à la génération (clé technique <-> libellé UI).
+type MealKey = 'breakfast' | 'lunch' | 'dinner';
+
+const MEAL_OPTIONS: { key: MealKey; label: string; emoji: string }[] = [
+  { key: 'breakfast', label: 'Petit-déjeuner', emoji: '🌅' },
+  { key: 'lunch', label: 'Déjeuner', emoji: '🌞' },
+  { key: 'dinner', label: 'Dîner', emoji: '🌙' },
+];
 
 interface Menu {
   id: string;
@@ -48,6 +58,8 @@ interface GeneratorFilters {
   servingSize: number;
   cuisineTypes: string[];
   dietaryRestrictions: string[];
+  // Repas à inclure dans la génération automatique (au moins un).
+  mealTypes: MealKey[];
 }
 
 export const MenuGenerator: React.FC = () => {
@@ -76,8 +88,19 @@ export const MenuGenerator: React.FC = () => {
     budgetMax: 50000,
     servingSize: 4,
     cuisineTypes: ['camerounaise'],
-    dietaryRestrictions: []
+    dietaryRestrictions: [],
+    mealTypes: ['breakfast', 'lunch', 'dinner'],
   });
+
+  // Active/désactive un créneau de repas dans les paramètres de génération.
+  const toggleMealType = (key: MealKey) => {
+    setFilters(prev => ({
+      ...prev,
+      mealTypes: prev.mealTypes.includes(key)
+        ? prev.mealTypes.filter(k => k !== key)
+        : [...prev.mealTypes, key],
+    }));
+  };
 
   useEffect(() => {
     if (user) {
@@ -147,6 +170,15 @@ export const MenuGenerator: React.FC = () => {
       return;
     }
 
+    if (filters.mealTypes.length === 0) {
+      toast({
+        title: "Aucun repas sélectionné",
+        description: "Choisissez au moins un repas à générer (petit-déjeuner, déjeuner ou dîner)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setGeneratingMode(enforceBudget ? 'strict' : 'standard');
     try {
       const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
@@ -166,6 +198,7 @@ export const MenuGenerator: React.FC = () => {
           budgetMax: filters.budgetMax,
           servingSize: filters.servingSize,
           dietaryRestrictions: filters.dietaryRestrictions,
+          selectedMeals: filters.mealTypes,
           monthName: getMonthName(selectedMonth),
           year: selectedYear,
           enforceBudget,
@@ -507,6 +540,32 @@ export const MenuGenerator: React.FC = () => {
           </div>
 
           <div className="mt-4 space-y-2">
+            <Label>Repas à générer</Label>
+            <p className="text-xs text-gray-500">
+              Sélectionnez les repas à inclure chaque jour. Décochez ceux dont vous n'avez pas besoin
+              (ex. seulement le déjeuner, ou déjeuner + dîner).
+            </p>
+            <div className="flex flex-wrap gap-4 pt-1">
+              {MEAL_OPTIONS.map(meal => (
+                <label
+                  key={meal.key}
+                  htmlFor={`meal-${meal.key}`}
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                >
+                  <Checkbox
+                    id={`meal-${meal.key}`}
+                    checked={filters.mealTypes.includes(meal.key)}
+                    onCheckedChange={() => toggleMealType(meal.key)}
+                  />
+                  <span className="text-sm">
+                    {meal.emoji} {meal.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-2">
             <Label>Restrictions alimentaires (séparées par des virgules)</Label>
             <Input
               placeholder="Ex: végétarien, sans-porc, halal"
@@ -668,7 +727,9 @@ export const MenuGenerator: React.FC = () => {
                 { key: 'breakfast', label: '🌅 Petit-déjeuner', mealType: 'petit-déjeuner' },
                 { key: 'lunch', label: '🌞 Déjeuner', mealType: 'déjeuner' },
                 { key: 'dinner', label: '🌙 Dîner', mealType: 'dîner' },
-              ] as const).map(slot => {
+              ] as const)
+                .filter(slot => filters.mealTypes.includes(slot.key))
+                .map(slot => {
                 const options = menus.filter(m => m.meal_type === slot.mealType);
                 return (
                   <div key={slot.key} className="space-y-2">

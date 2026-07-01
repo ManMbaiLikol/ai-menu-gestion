@@ -93,6 +93,7 @@ Deno.serve(async (req: Request) => {
       budgetMax = 0,
       servingSize = 4,
       dietaryRestrictions = [],
+      selectedMeals,
       monthName = "",
       year,
       enforceBudget = false,
@@ -103,6 +104,7 @@ Deno.serve(async (req: Request) => {
       budgetMax: number;
       servingSize: number;
       dietaryRestrictions: string[];
+      selectedMeals?: SlotKey[];
       monthName: string;
       year: number;
       enforceBudget: boolean;
@@ -114,6 +116,17 @@ Deno.serve(async (req: Request) => {
     if (!daysInMonth || daysInMonth < 1) {
       return json({ error: "daysInMonth invalide." }, 400);
     }
+
+    // Créneaux à générer : on garde ceux demandés par l'utilisateur (au moins un).
+    // Par défaut (compat. ascendante), on génère les trois repas.
+    const requestedMeals = Array.isArray(selectedMeals) && selectedMeals.length > 0
+      ? selectedMeals
+      : SLOTS.map((s) => s.key);
+    const activeSlots = SLOTS.filter((s) => requestedMeals.includes(s.key));
+    if (activeSlots.length === 0) {
+      return json({ error: "Aucun repas sélectionné pour la génération." }, 400);
+    }
+    const isMealActive = (key: SlotKey) => activeSlots.some((s) => s.key === key);
 
     const dailyBudget = budgetMax > 0 ? Math.round(budgetMax / daysInMonth) : 0;
     const menuById = new Map<string, MenuLite>(menus.map((m) => [m.id, m]));
@@ -144,6 +157,7 @@ Tu choisis uniquement des id de menus présents dans la liste fournie. Réponds 
         monthlyBudgetMinFCFA: budgetMin,
         servingSize,
         dietaryRestrictions,
+        mealsToPlan: activeSlots.map((s) => s.mealType),
         menus: menus.map((m) => ({
           id: m.id,
           name: m.name,
@@ -165,6 +179,8 @@ Tu choisis uniquement des id de menus présents dans la liste fournie. Réponds 
             role: "user",
             content:
               `Construis le plan pour ${monthName} ${year ?? ""} (${daysInMonth} jours).\n` +
+              `Ne planifie QUE les repas suivants : ${activeSlots.map((s) => s.mealType).join(", ")}. ` +
+              `Pour tout repas non demandé, renvoie "" (chaîne vide) dans le champ correspondant.\n` +
               `Données (JSON):\n${JSON.stringify(userPayload)}`,
           },
         ],
@@ -211,11 +227,11 @@ Tu choisis uniquement des id de menus présents dans la liste fournie. Réponds 
       const menu_data: Record<number, unknown> = {};
       let totalCost = 0;
       for (const [day, pick] of preferred) {
-        const breakfast = menuById.has(pick.breakfastId)
+        const breakfast = isMealActive("breakfast") && menuById.has(pick.breakfastId)
           ? toSlot(menuById.get(pick.breakfastId)!) : null;
-        const lunch = menuById.has(pick.lunchId)
+        const lunch = isMealActive("lunch") && menuById.has(pick.lunchId)
           ? toSlot(menuById.get(pick.lunchId)!) : null;
-        const dinner = menuById.has(pick.dinnerId)
+        const dinner = isMealActive("dinner") && menuById.has(pick.dinnerId)
           ? toSlot(menuById.get(pick.dinnerId)!) : null;
         const dayCost =
           (breakfast?.cost ?? 0) + (lunch?.cost ?? 0) + (dinner?.cost ?? 0);
@@ -246,7 +262,7 @@ Tu choisis uniquement des id de menus présents dans la liste fournie. Réponds 
       lunch: [],
       dinner: [],
     };
-    for (const s of SLOTS) {
+    for (const s of activeSlots) {
       pools[s.key] = menus
         .filter((m) => validForSlot(m, s.mealType))
         .sort((a, b) => (Number(a.total_cost) || 0) - (Number(b.total_cost) || 0));
@@ -263,8 +279,8 @@ Tu choisis uniquement des id de menus présents dans la liste fournie. Réponds 
 
     for (let day = 1; day <= daysInMonth; day++) {
       const pick = preferred.get(day);
-      for (let si = 0; si < SLOTS.length; si++) {
-        const s = SLOTS[si];
+      for (let si = 0; si < activeSlots.length; si++) {
+        const s = activeSlots[si];
         const pool = pools[s.key];
         let menu: MenuLite | null = null;
 
