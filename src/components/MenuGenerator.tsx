@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Calendar, Shuffle, Filter, DollarSign, Users, Pencil } from 'lucide-react';
+import { Calendar, Shuffle, Filter, DollarSign, Users, Pencil, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
@@ -53,6 +53,8 @@ interface GeneratorFilters {
 export const MenuGenerator: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  // mode de génération en cours (null = aucune génération), pour l'état des 2 boutons
+  const [generatingMode, setGeneratingMode] = useState<'standard' | 'strict' | null>(null);
   const [menus, setMenus] = useState<Menu[]>([]);
   const [monthlyPlans, setMonthlyPlans] = useState<MonthlyPlan[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -124,7 +126,9 @@ export const MenuGenerator: React.FC = () => {
 
   // Optimisation via l'Edge Function `generate-menu-plan` (Claude sous contraintes) —
   // remplace l'ancienne génération aléatoire (recommandation #3).
-  const generateMonthlyPlan = async () => {
+  // `enforceBudget` active le mode strict (bouton « Plan Mensuel IA ») qui borne
+  // le total mensuel au budget maximum de façon déterministe.
+  const generateMonthlyPlan = async (enforceBudget = false) => {
     if (menus.length === 0) {
       toast({
         title: "Aucun menu disponible",
@@ -134,7 +138,16 @@ export const MenuGenerator: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    if (enforceBudget && !(filters.budgetMax > 0)) {
+      toast({
+        title: "Budget requis",
+        description: "Indiquez un budget maximum supérieur à 0 pour le mode budget strict",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGeneratingMode(enforceBudget ? 'strict' : 'standard');
     try {
       const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
 
@@ -155,6 +168,7 @@ export const MenuGenerator: React.FC = () => {
           dietaryRestrictions: filters.dietaryRestrictions,
           monthName: getMonthName(selectedMonth),
           year: selectedYear,
+          enforceBudget,
         },
       });
 
@@ -175,10 +189,22 @@ export const MenuGenerator: React.FC = () => {
       setGeneratedPlan(planData);
       setLoadedPlanId(null);
 
-      toast({
-        title: "Plan mensuel optimisé !",
-        description: `Plan pour ${getMonthName(selectedMonth)} ${selectedYear} généré sous contraintes`,
-      });
+      if (enforceBudget && (data as any).within_budget === false) {
+        // Stratégie « au plus proche + alerte » : le plan le moins cher dépasse le budget.
+        toast({
+          title: "Budget insuffisant",
+          description: (data as any).warning ??
+            `Le plan le moins cher revient à ${planData.total_estimated_cost} FCFA, au-dessus du budget.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: enforceBudget ? "Plan IA dans le budget !" : "Plan mensuel optimisé !",
+          description: enforceBudget
+            ? `Total ${planData.total_estimated_cost} FCFA pour un budget de ${filters.budgetMax} FCFA (${getMonthName(selectedMonth)} ${selectedYear})`
+            : `Plan pour ${getMonthName(selectedMonth)} ${selectedYear} généré sous contraintes`,
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Erreur lors de la génération",
@@ -186,7 +212,7 @@ export const MenuGenerator: React.FC = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setGeneratingMode(null);
     }
   };
 
@@ -497,19 +523,36 @@ export const MenuGenerator: React.FC = () => {
             />
           </div>
 
-          <div className="mt-4 flex gap-2">
-            <Button onClick={generateMonthlyPlan} disabled={loading} className="flex items-center gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              onClick={() => generateMonthlyPlan(false)}
+              disabled={generatingMode !== null}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
               <Shuffle className="h-4 w-4" />
-              {loading ? 'Génération...' : 'Générer Plan Mensuel'}
+              {generatingMode === 'standard' ? 'Génération...' : 'Générer Plan Mensuel'}
             </Button>
-            
+
+            <Button
+              onClick={() => generateMonthlyPlan(true)}
+              disabled={generatingMode !== null}
+              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700"
+            >
+              <Sparkles className="h-4 w-4" />
+              {generatingMode === 'strict' ? 'Génération...' : 'Plan Mensuel IA (budget strict)'}
+            </Button>
+
             {generatedPlan && (
-              <Button onClick={saveMonthlyPlan} disabled={loading} variant="outline" className="flex items-center gap-2">
+              <Button onClick={saveMonthlyPlan} disabled={loading || generatingMode !== null} variant="outline" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 {loadedPlanId ? 'Mettre à jour le Plan' : 'Sauvegarder le Plan'}
               </Button>
             )}
           </div>
+          <p className="mt-2 text-xs text-gray-500">
+            « Plan Mensuel IA » garantit un total mensuel ≤ budget maximum (choix des menus les moins chers si nécessaire).
+          </p>
         </CardContent>
       </Card>
 
@@ -520,9 +563,19 @@ export const MenuGenerator: React.FC = () => {
             <CardTitle className="flex items-center justify-between">
               <span>Plan Mensuel - {getMonthName(generatedPlan.month)} {generatedPlan.year}</span>
               <div className="flex items-center gap-4 text-sm">
-                <Badge variant="secondary" className="flex items-center gap-1">
+                <Badge
+                  variant="secondary"
+                  className={`flex items-center gap-1 ${
+                    generatedPlan.budget_max > 0
+                      ? generatedPlan.total_estimated_cost <= generatedPlan.budget_max
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                      : ''
+                  }`}
+                >
                   <DollarSign className="h-3 w-3" />
                   {generatedPlan.total_estimated_cost} FCFA
+                  {generatedPlan.budget_max > 0 && ` / ${generatedPlan.budget_max}`}
                 </Badge>
                 <Badge variant="outline" className="flex items-center gap-1">
                   <Users className="h-3 w-3" />
