@@ -62,7 +62,7 @@ interface EditItem {
 const MEAL_TYPES = ['petit-déjeuner', 'déjeuner', 'dîner'];
 const UNITS = ['kg', 'litre', 'pièce', 'douzaine'];
 
-export const MenuLibrary: React.FC = () => {
+export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const { user } = useAuth();
   const [menus, setMenus] = useState<Menu[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -358,6 +358,7 @@ export const MenuLibrary: React.FC = () => {
       setEditOpen(false);
       setEditingMenu(null);
       fetchMenus();
+      onChanged?.();
     } catch (error: any) {
       toast({
         title: 'Erreur lors de la mise à jour',
@@ -387,6 +388,7 @@ export const MenuLibrary: React.FC = () => {
       });
 
       fetchMenus();
+      onChanged?.();
       if (selectedMenu?.id === menu.id) {
         setSelectedMenu(null);
       }
@@ -807,50 +809,54 @@ export const MenuLibrary: React.FC = () => {
                       </div>
 
                       {it.ingredients.map((ing, ii) => (
-                        <div key={ii} className="grid grid-cols-2 md:grid-cols-12 gap-2 items-center">
-                          <Input
-                            className="md:col-span-4"
-                            placeholder="Nom"
-                            value={ing.name}
-                            onChange={(e) => patchIngredient(di, ii, { name: e.target.value })}
-                          />
-                          <Input
-                            className="md:col-span-2"
-                            type="number"
-                            placeholder="Qté"
-                            value={ing.quantity || ''}
-                            onChange={(e) => patchIngredient(di, ii, { quantity: parseFloat(e.target.value) || 0 })}
-                          />
-                          <Select
-                            value={ing.unit}
-                            onValueChange={(value) => patchIngredient(di, ii, { unit: value })}
-                          >
-                            <SelectTrigger className="md:col-span-2">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {UNITS.map(u => (
-                                <SelectItem key={u} value={u}>{u}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            className="md:col-span-3"
-                            type="number"
-                            placeholder="Prix unitaire FCFA"
-                            value={ing.unitPrice || ''}
-                            onChange={(e) => patchIngredient(di, ii, { unitPrice: parseFloat(e.target.value) || 0 })}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="md:col-span-1 text-red-600 hover:text-red-700"
-                            title="Retirer l'ingrédient"
-                            onClick={() => removeIngredient(di, ii)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                        <div key={ii} className="rounded-md border bg-white p-2 space-y-2">
+                          {/* Ligne 1 : nom + suppression (bouton clairement rattaché à cet ingrédient) */}
+                          <div className="flex items-center gap-2">
+                            <Input
+                              className="flex-1"
+                              placeholder="Nom de l'ingrédient"
+                              value={ing.name}
+                              onChange={(e) => patchIngredient(di, ii, { name: e.target.value })}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="shrink-0 text-red-600 hover:text-red-700"
+                              title="Retirer cet ingrédient"
+                              onClick={() => removeIngredient(di, ii)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          {/* Ligne 2 : quantité / unité / prix unitaire */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <Input
+                              type="number"
+                              placeholder="Qté"
+                              value={ing.quantity || ''}
+                              onChange={(e) => patchIngredient(di, ii, { quantity: parseFloat(e.target.value) || 0 })}
+                            />
+                            <Select
+                              value={ing.unit}
+                              onValueChange={(value) => patchIngredient(di, ii, { unit: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {UNITS.map(u => (
+                                  <SelectItem key={u} value={u}>{u}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="number"
+                              placeholder="Prix/u FCFA"
+                              value={ing.unitPrice || ''}
+                              onChange={(e) => patchIngredient(di, ii, { unitPrice: parseFloat(e.target.value) || 0 })}
+                            />
+                          </div>
                         </div>
                       ))}
                       {it.ingredients.length === 0 && (

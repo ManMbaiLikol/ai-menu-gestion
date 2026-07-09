@@ -29,7 +29,7 @@ interface MenuData {
   dietaryTags: string[];
 }
 
-export const MenuUpload: React.FC = () => {
+export const MenuUpload: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -308,6 +308,7 @@ export const MenuUpload: React.FC = () => {
       setImageFile(null);
       setImagePreview(null);
 
+      onChanged?.();
     } catch (error: any) {
       toast({
         title: "Erreur lors de la création du menu",

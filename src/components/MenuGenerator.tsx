@@ -62,7 +62,7 @@ interface GeneratorFilters {
   mealTypes: MealKey[];
 }
 
-export const MenuGenerator: React.FC = () => {
+export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   // mode de génération en cours (null = aucune génération), pour l'état des 2 boutons
@@ -299,6 +299,7 @@ export const MenuGenerator: React.FC = () => {
       }
 
       fetchMonthlyPlans();
+      onChanged?.();
     } catch (error: any) {
       toast({
         title: "Erreur lors de la sauvegarde",

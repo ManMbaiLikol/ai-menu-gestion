@@ -95,7 +95,7 @@ const PriceEditDialog: React.FC<{
   );
 };
 
-export const PriceManager: React.FC = () => {
+export const PriceManager: React.FC<{ onChanged?: () => void }> = ({ onChanged }) => {
   const { user } = useAuth();
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
@@ -236,6 +236,7 @@ export const PriceManager: React.FC = () => {
 
       fetchIngredients();
       fetchPriceHistory();
+      onChanged?.();
       setEditingIngredient(null);
     } catch (error: any) {
       toast({

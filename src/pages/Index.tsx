@@ -256,19 +256,19 @@ const Index = () => {
 
           {/* Tab Contents */}
           <TabsContent value="upload" className="space-y-6">
-            <MenuUpload />
+            <MenuUpload onChanged={loadDashboard} />
           </TabsContent>
 
           <TabsContent value="library" className="space-y-6">
-            <MenuLibrary />
+            <MenuLibrary onChanged={loadDashboard} />
           </TabsContent>
 
           <TabsContent value="generator" className="space-y-6">
-            <MenuGenerator />
+            <MenuGenerator onChanged={loadDashboard} />
           </TabsContent>
 
           <TabsContent value="prices" className="space-y-6">
-            <PriceManager />
+            <PriceManager onChanged={loadDashboard} />
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-6">
