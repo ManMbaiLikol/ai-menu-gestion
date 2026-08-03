@@ -100,7 +100,7 @@ export const PriceManager: React.FC<{ onChanged?: () => void }> = ({ onChanged }
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(null);
+  const [, setEditingIngredient] = useState<Ingredient | null>(null);
   const [newIngredient, setNewIngredient] = useState({
     name: '',
     category: 'Légumes',
@@ -458,7 +458,7 @@ export const PriceManager: React.FC<{ onChanged?: () => void }> = ({ onChanged }
                           variant="outline"
                           size="sm"
                           onClick={() => deleteIngredient(ingredient)}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -482,7 +482,7 @@ export const PriceManager: React.FC<{ onChanged?: () => void }> = ({ onChanged }
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 border rounded-lg">
+            <div className="p-4 rounded-2xl border bg-muted/30">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="h-5 w-5 text-red-500" />
                 <span className="font-semibold">Inflation Moyenne</span>
@@ -495,7 +495,7 @@ export const PriceManager: React.FC<{ onChanged?: () => void }> = ({ onChanged }
               </p>
             </div>
             
-            <div className="p-4 border rounded-lg">
+            <div className="p-4 rounded-2xl border bg-muted/30">
               <div className="flex items-center gap-2 mb-2">
                 <DollarSign className="h-5 w-5 text-green-500" />
                 <span className="font-semibold">Ingrédients Suivis</span>
@@ -505,13 +505,13 @@ export const PriceManager: React.FC<{ onChanged?: () => void }> = ({ onChanged }
               </p>
             </div>
             
-            <div className="p-4 border rounded-lg">
+            <div className="p-4 rounded-2xl border bg-muted/30">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="h-5 w-5 text-blue-500" />
+                <TrendingDown className="h-5 w-5 text-[hsl(43_80%_44%)]" />
                 <span className="font-semibold">Prix Moyen</span>
               </div>
-              <p className="text-2xl font-bold text-blue-600">
-                {ingredients.length > 0 
+              <p className="text-2xl font-bold text-[hsl(38_82%_40%)]">
+                {ingredients.length > 0
                   ? Math.round(ingredients.reduce((sum, i) => sum + i.current_price, 0) / ingredients.length)
                   : '0'
                 } FCFA
@@ -535,23 +535,23 @@ export const PriceManager: React.FC<{ onChanged?: () => void }> = ({ onChanged }
         <CardContent>
           {forecast ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 border rounded-lg">
-                <span className="font-semibold text-sm text-gray-600">Prix moyen actuel</span>
-                <p className="text-2xl font-bold text-blue-600">{forecast.currentAvg} FCFA</p>
+              <div className="p-4 rounded-2xl border bg-muted/30">
+                <span className="font-semibold text-sm text-muted-foreground">Prix moyen actuel</span>
+                <p className="text-2xl font-bold text-foreground">{forecast.currentAvg} FCFA</p>
               </div>
-              <div className="p-4 border rounded-lg">
-                <span className="font-semibold text-sm text-gray-600">Prix moyen projeté</span>
-                <p className="text-2xl font-bold text-orange-600">{forecast.projectedAvg} FCFA</p>
+              <div className="p-4 rounded-2xl border bg-muted/30">
+                <span className="font-semibold text-sm text-muted-foreground">Prix moyen projeté</span>
+                <p className="text-2xl font-bold text-[hsl(38_82%_40%)]">{forecast.projectedAvg} FCFA</p>
               </div>
-              <div className="p-4 border rounded-lg">
-                <span className="font-semibold text-sm text-gray-600">Inflation projetée</span>
+              <div className="p-4 rounded-2xl border bg-muted/30">
+                <span className="font-semibold text-sm text-muted-foreground">Inflation projetée</span>
                 <p className={`text-2xl font-bold ${forecast.projectedInflation >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                   {forecast.projectedInflation >= 0 ? '+' : ''}{forecast.projectedInflation.toFixed(1)}%
                 </p>
               </div>
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-6">
+            <p className="text-muted-foreground text-center py-6">
               Ajoutez des ingrédients et mettez à jour leurs prix pour générer une prévision.
             </p>
           )}

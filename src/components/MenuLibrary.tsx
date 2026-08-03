@@ -456,7 +456,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Rechercher un menu..."
                   value={searchTerm}
@@ -487,7 +487,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
           <Card key={menu.id} className="hover:shadow-lg transition-shadow">
             <CardContent className="p-0">
               {menu.image_url && (
-                <div className="h-48 bg-gray-200 rounded-t-lg overflow-hidden">
+                <div className="h-48 bg-muted rounded-t-3xl overflow-hidden">
                   <img
                     src={menu.image_url}
                     alt={menu.name}
@@ -522,7 +522,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                       size="sm"
                       onClick={() => deleteMenu(menu)}
                       disabled={loading}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-destructive hover:text-destructive"
                       title="Supprimer le menu"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -530,7 +530,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                   </div>
                 </div>
 
-                <p className="text-gray-600 text-sm line-clamp-2 mb-3">
+                <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
                   {menu.description || 'Aucune description disponible'}
                 </p>
 
@@ -543,7 +543,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                   )}
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-500">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
                       <Users className="h-3 w-3" />
@@ -565,11 +565,11 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
       {filteredMenus.length === 0 && (
         <Card>
           <CardContent className="text-center py-12">
-            <ChefHat className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">
+            <ChefHat className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold text-muted-foreground mb-2">
               {searchTerm || filterCuisine !== 'all' ? 'Aucun menu trouvé' : 'Aucun menu créé'}
             </h3>
-            <p className="text-gray-500">
+            <p className="text-muted-foreground">
               {searchTerm || filterCuisine !== 'all'
                 ? 'Essayez de modifier vos critères de recherche'
                 : 'Commencez par créer votre premier menu'
@@ -592,11 +592,11 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-gray-500" />
+                  <Users className="h-4 w-4 text-muted-foreground" />
                   <span>{selectedMenu.serving_size} personnes</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-gray-500" />
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                   <span>{selectedMenu.total_cost} FCFA</span>
                 </div>
               </div>
@@ -610,7 +610,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
               {selectedMenu.description && (
                 <div>
                   <h4 className="font-semibold mb-2">Description</h4>
-                  <p className="text-gray-600">{selectedMenu.description}</p>
+                  <p className="text-muted-foreground">{selectedMenu.description}</p>
                 </div>
               )}
 
@@ -622,7 +622,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                       <div key={item.id} className="border rounded-lg p-3">
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-medium">{item.dish_name}</span>
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Clock className="h-3 w-3" />
                             {item.preparation_time} min
                           </div>
@@ -658,7 +658,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
           </DialogHeader>
 
           {editLoading ? (
-            <div className="flex items-center justify-center py-12 text-gray-500">
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin mr-2" /> Chargement du menu…
             </div>
           ) : editingMenu && (
@@ -744,13 +744,13 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                 </div>
 
                 {editItems.length === 0 && (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Aucun plat. Ajoutez-en un pour détailler les ingrédients et le coût.
                   </p>
                 )}
 
                 {editItems.map((it, di) => (
-                  <div key={di} className="border rounded-lg p-4 space-y-3 bg-gray-50">
+                  <div key={di} className="border rounded-2xl p-4 space-y-3 bg-muted/40">
                     <div className="flex items-start justify-between gap-2">
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1">
                         <div className="sm:col-span-1 space-y-1">
@@ -791,7 +791,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-red-600 hover:text-red-700 mt-5"
+                        className="text-destructive hover:text-destructive mt-5"
                         title="Supprimer ce plat"
                         onClick={() => removeDish(di)}
                       >
@@ -802,14 +802,14 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                     {/* Ingrédients du plat */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs text-gray-600">Ingrédients</Label>
+                        <Label className="text-xs text-muted-foreground">Ingrédients</Label>
                         <Button type="button" variant="outline" size="sm" onClick={() => addIngredient(di)}>
                           <Plus className="h-3 w-3 mr-1" /> Ingrédient
                         </Button>
                       </div>
 
                       {it.ingredients.map((ing, ii) => (
-                        <div key={ii} className="rounded-md border bg-white p-2 space-y-2">
+                        <div key={ii} className="rounded-xl border bg-card p-2 space-y-2">
                           {/* Ligne 1 : nom + suppression (bouton clairement rattaché à cet ingrédient) */}
                           <div className="flex items-center gap-2">
                             <Input
@@ -822,7 +822,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                               type="button"
                               variant="ghost"
                               size="sm"
-                              className="shrink-0 text-red-600 hover:text-red-700"
+                              className="shrink-0 text-destructive hover:text-destructive"
                               title="Retirer cet ingrédient"
                               onClick={() => removeIngredient(di, ii)}
                             >
@@ -860,7 +860,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                         </div>
                       ))}
                       {it.ingredients.length === 0 && (
-                        <p className="text-xs text-gray-400">Aucun ingrédient pour ce plat.</p>
+                        <p className="text-xs text-muted-foreground">Aucun ingrédient pour ce plat.</p>
                       )}
                     </div>
                   </div>
@@ -869,12 +869,12 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
 
               {/* Récap coût + actions */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t pt-4">
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-muted-foreground">
                   Coût estimé du brouillon :{' '}
-                  <span className="font-semibold text-green-700">
+                  <span className="font-semibold text-primary">
                     {draftTotal.toLocaleString('fr-FR')} FCFA
                   </span>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-muted-foreground">
                     Le coût définitif est recalculé automatiquement d'après les prix enregistrés.
                   </p>
                 </div>

@@ -418,11 +418,11 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
           key={day}
           onClick={() => openDayEditor(day)}
           title="Cliquer pour modifier le menu de ce jour"
-          className="group relative text-left p-2 border rounded-lg bg-white min-h-[88px] sm:min-h-[120px] hover:border-orange-400 hover:shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400"
+          className="group relative text-left p-2 border rounded-2xl bg-card min-h-[88px] sm:min-h-[120px] hover:border-primary hover:shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <div className="flex items-center justify-between mb-1">
             <span className="font-semibold text-sm">{day}</span>
-            <Pencil className="h-3 w-3 text-gray-300 group-hover:text-orange-500" />
+            <Pencil className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary" />
           </div>
           {dayData ? (
             <div className="space-y-1 text-xs">
@@ -441,12 +441,12 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
                   🌙 {dayData.dinner.name}
                 </div>
               )}
-              <div className="text-green-600 font-semibold">
+              <div className="text-primary font-semibold">
                 {dayData.totalDayCost} FCFA
               </div>
             </div>
           ) : (
-            <span className="text-[11px] text-gray-400 group-hover:text-orange-500">+ Ajouter</span>
+            <span className="text-[11px] text-muted-foreground group-hover:text-primary">+ Ajouter</span>
           )}
         </button>
       );
@@ -456,7 +456,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
       <div className="overflow-x-auto -mx-2 px-2">
         <div className="grid grid-cols-7 gap-1 sm:gap-2 min-w-[640px]">
           {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
-            <div key={day} className="p-2 text-center font-semibold bg-gray-100 rounded text-xs sm:text-sm">
+            <div key={day} className="p-2 text-center font-semibold bg-secondary text-secondary-foreground rounded-lg text-xs sm:text-sm">
               {day}
             </div>
           ))}
@@ -542,7 +542,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
 
           <div className="mt-4 space-y-2">
             <Label>Repas à générer</Label>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Sélectionnez les repas à inclure chaque jour. Décochez ceux dont vous n'avez pas besoin
               (ex. seulement le déjeuner, ou déjeuner + dîner).
             </p>
@@ -597,7 +597,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
             <Button
               onClick={() => generateMonthlyPlan(true)}
               disabled={generatingMode !== null}
-              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700"
+              className="flex items-center gap-2"
             >
               <Sparkles className="h-4 w-4" />
               {generatingMode === 'strict' ? 'Génération...' : 'Plan Mensuel IA (budget strict)'}
@@ -610,7 +610,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
               </Button>
             )}
           </div>
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-muted-foreground">
             « Plan Mensuel IA » garantit un total mensuel ≤ budget maximum (choix des menus les moins chers si nécessaire).
           </p>
         </CardContent>
@@ -665,7 +665,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
         </CardHeader>
         <CardContent>
           {monthlyPlans.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">
+            <p className="text-muted-foreground text-center py-8">
               Aucun plan mensuel sauvegardé. Générez votre premier plan !
             </p>
           ) : (
@@ -675,7 +675,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
                   key={plan.id}
                   onClick={() => openSavedPlan(plan)}
                   className={`cursor-pointer hover:shadow-md transition-shadow ${
-                    loadedPlanId === plan.id ? 'ring-2 ring-orange-400' : ''
+                    loadedPlanId === plan.id ? 'ring-2 ring-primary' : ''
                   }`}
                 >
                   <CardContent className="p-4">
@@ -687,7 +687,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
                         {plan.total_estimated_cost} FCFA
                       </Badge>
                     </div>
-                    <div className="text-sm text-gray-600 space-y-1">
+                    <div className="text-sm text-muted-foreground space-y-1">
                       <div className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
                         {plan.serving_size} personnes
@@ -719,7 +719,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
           </DialogHeader>
 
           {menus.length === 0 ? (
-            <p className="text-sm text-gray-500 py-4">
+            <p className="text-sm text-muted-foreground py-4">
               Aucun menu disponible. Créez d'abord des menus dans l'onglet « Analyser Menu ».
             </p>
           ) : (
@@ -754,7 +754,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
                       </SelectContent>
                     </Select>
                     {options.length === 0 && (
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-muted-foreground">
                         Aucun menu de type « {slot.mealType} » disponible.
                       </p>
                     )}
