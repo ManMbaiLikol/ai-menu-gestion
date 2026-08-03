@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from './AuthProvider';
 import { InstallButton } from './InstallButton';
+import { ThemeToggle } from './ThemeToggle';
 import { Loader2, ChefHat, Star } from 'lucide-react';
 
 export const AuthForm: React.FC = () => {
@@ -44,6 +45,9 @@ export const AuthForm: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md">
         {/* En-tête de marque */}
         <div className="text-center mb-6">

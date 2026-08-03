@@ -9,6 +9,7 @@ import { PriceManager } from '@/components/PriceManager';
 import { MenuLibrary } from '@/components/MenuLibrary';
 import { supabase } from '@/integrations/supabase/client';
 import { InstallButton } from '@/components/InstallButton';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -200,6 +201,7 @@ const Index = () => {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              <ThemeToggle className="shrink-0" />
               <InstallButton compact className="shrink-0 rounded-full" />
               <div className="hidden sm:flex items-center gap-2 min-w-0 rounded-full bg-secondary px-3 py-1.5">
                 <User className="h-4 w-4 text-primary shrink-0" />
