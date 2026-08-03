@@ -493,10 +493,10 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                   alt=""
                   aria-hidden="true"
                   loading="lazy"
-                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.13] transition-opacity duration-300 group-hover:opacity-25 dark:opacity-10 dark:group-hover:opacity-20"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25 transition-opacity duration-300 group-hover:opacity-40 dark:opacity-20 dark:group-hover:opacity-[0.32]"
                 />
                 {/* Dégradé pour préserver la lisibilité du texte */}
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card via-card/60 to-card/20" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card via-card/70 to-card/30" />
               </>
             )}
             <CardContent className="relative p-4">
