@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from './AuthProvider';
+import { InstallButton } from './InstallButton';
 import { Loader2, ChefHat, Star } from 'lucide-react';
 
 export const AuthForm: React.FC = () => {
@@ -167,9 +168,12 @@ export const AuthForm: React.FC = () => {
         </CardContent>
       </Card>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          📲 Astuce : ajoutez l'application à votre écran d'accueil pour un accès rapide.
-        </p>
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <InstallButton className="rounded-full" />
+          <p className="text-center text-xs text-muted-foreground">
+            📲 Installez l'app sur votre téléphone pour un accès rapide.
+          </p>
+        </div>
       </div>
     </div>
   );
