@@ -111,51 +111,73 @@ const Index = () => {
     }
   };
 
+  const mealChip = (emoji: string, name: string, cls: string) => (
+    <div className={`flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] font-medium ${cls}`}>
+      <span className="shrink-0">{emoji}</span>
+      <span className="truncate">{name}</span>
+    </div>
+  );
+
   const renderCalendar = (plan: MonthlyPlan) => {
     const daysInMonth = new Date(plan.year, plan.month, 0).getDate();
     const firstDayOfWeek = new Date(plan.year, plan.month - 1, 1).getDay();
+    const now = new Date();
+    const isCurrentMonth = now.getFullYear() === plan.year && now.getMonth() + 1 === plan.month;
+    const todayDate = now.getDate();
     const cells: React.ReactNode[] = [];
 
     for (let i = 0; i < firstDayOfWeek; i++) {
-      cells.push(<div key={`empty-${i}`} className="p-2" />);
+      cells.push(<div key={`empty-${i}`} />);
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dayData = plan.menu_data?.[day];
+      const isToday = isCurrentMonth && day === todayDate;
       cells.push(
-        <div key={day} className="p-2 border rounded-lg bg-white min-h-[88px] sm:min-h-[120px]">
-          <div className="font-semibold text-sm mb-1">{day}</div>
-          {dayData && (
-            <div className="space-y-1 text-xs">
-              {dayData.breakfast && (
-                <div className="bg-yellow-100 p-1 rounded text-yellow-800 truncate">
-                  🌅 {dayData.breakfast.name}
-                </div>
-              )}
-              {dayData.lunch && (
-                <div className="bg-orange-100 p-1 rounded text-orange-800 truncate">
-                  🌞 {dayData.lunch.name}
-                </div>
-              )}
-              {dayData.dinner && (
-                <div className="bg-blue-100 p-1 rounded text-blue-800 truncate">
-                  🌙 {dayData.dinner.name}
-                </div>
-              )}
-              <div className="text-green-600 font-semibold">
+        <div
+          key={day}
+          className={`flex flex-col gap-1 rounded-2xl border p-2 min-h-[94px] sm:min-h-[126px] transition-colors ${
+            isToday
+              ? 'border-primary/50 ring-2 ring-primary/40 bg-card'
+              : dayData
+                ? 'border-border/70 bg-card hover:border-primary/40'
+                : 'border-border/50 bg-muted/30'
+          }`}
+        >
+          <span
+            className={`inline-flex h-6 min-w-[1.5rem] w-fit items-center justify-center rounded-full px-1.5 text-xs font-bold ${
+              isToday ? 'bg-primary text-primary-foreground' : 'text-foreground'
+            }`}
+          >
+            {day}
+          </span>
+          {dayData ? (
+            <div className="flex flex-1 flex-col gap-1">
+              {dayData.breakfast &&
+                mealChip('🌅', dayData.breakfast.name, 'bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300')}
+              {dayData.lunch &&
+                mealChip('🌞', dayData.lunch.name, 'bg-orange-100 text-orange-800 dark:bg-orange-400/15 dark:text-orange-300')}
+              {dayData.dinner &&
+                mealChip('🌙', dayData.dinner.name, 'bg-sky-100 text-sky-800 dark:bg-sky-400/15 dark:text-sky-300')}
+              <div className="mt-auto inline-flex w-fit items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary dark:bg-primary/20">
                 {dayData.totalDayCost} FCFA
               </div>
             </div>
+          ) : (
+            <span className="text-[11px] text-muted-foreground/50">—</span>
           )}
         </div>
       );
     }
 
     return (
-      <div className="overflow-x-auto -mx-2 px-2">
-        <div className="grid grid-cols-7 gap-1 sm:gap-2 min-w-[640px]">
+      <div className="overflow-x-auto -mx-2 px-2 pb-1">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2 min-w-[680px]">
           {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(d => (
-            <div key={d} className="p-2 text-center font-semibold bg-gray-100 rounded text-xs sm:text-sm">
+            <div
+              key={d}
+              className="rounded-lg bg-muted py-2 text-center text-[11px] sm:text-sm font-bold uppercase tracking-wide text-muted-foreground"
+            >
               {d}
             </div>
           ))}
@@ -295,39 +317,71 @@ const Index = () => {
               <CardContent>
                 {plans.length === 0 ? (
                   <div className="text-center py-12">
-                    <Calendar className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-600 mb-2">
+                    <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/10 text-primary">
+                      <Calendar className="h-9 w-9" />
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground mb-2">
                       Aucun plan à afficher
                     </h3>
-                    <p className="text-gray-500 mb-4">
+                    <p className="text-muted-foreground max-w-md mx-auto">
                       Générez et sauvegardez un plan mensuel depuis l'onglet « Générateur »
-                      pour le visualiser ici.
+                      pour le visualiser ici, jour par jour.
                     </p>
-                    <Badge variant="secondary">Vide</Badge>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between flex-wrap gap-3">
-                      <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
-                        <SelectTrigger className="w-64">
-                          <SelectValue placeholder="Choisir un plan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {plans.map(p => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {MONTHS[p.month - 1]} {p.year}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {selectedPlan && (
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <DollarSign className="h-3 w-3" />
-                          {selectedPlan.total_estimated_cost} FCFA
-                        </Badge>
-                      )}
+                  <div className="space-y-5">
+                    {/* Sélecteur de plan + résumé */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                          <Calendar className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-extrabold leading-tight">
+                            {selectedPlan ? `${MONTHS[selectedPlan.month - 1]} ${selectedPlan.year}` : 'Plan'}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {selectedPlan ? Object.keys(selectedPlan.menu_data ?? {}).length : 0} jour(s) planifié(s)
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                          <SelectTrigger className="w-full sm:w-56">
+                            <SelectValue placeholder="Choisir un plan" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {plans.map(p => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {MONTHS[p.month - 1]} {p.year}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedPlan && (
+                          <Badge className="flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-3 py-1.5 text-sm">
+                            <DollarSign className="h-3.5 w-3.5" />
+                            {selectedPlan.total_estimated_cost.toLocaleString('fr-FR')} FCFA
+                          </Badge>
+                        )}
+                      </div>
                     </div>
+
                     {selectedPlan && renderCalendar(selectedPlan)}
+
+                    {/* Légende des repas */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground pt-1">
+                      <span className="font-semibold">Légende :</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> 🌅 Petit-déjeuner
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-orange-400" /> 🌞 Déjeuner
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-sky-400" /> 🌙 Dîner
+                      </span>
+                    </div>
                   </div>
                 )}
               </CardContent>
