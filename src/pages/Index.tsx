@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ChefHat,
-  Upload,
   Calendar,
   DollarSign,
   BookOpen,
@@ -23,7 +22,8 @@ import {
   User,
   TrendingUp,
   Shuffle,
-  Camera
+  Camera,
+  Sparkles
 } from 'lucide-react';
 
 interface MonthlyPlan {
@@ -46,6 +46,14 @@ const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
+
+const NAV_ITEMS = [
+  { value: 'upload', label: 'Analyser', icon: Camera },
+  { value: 'library', label: 'Bibliothèque', icon: BookOpen },
+  { value: 'generator', label: 'Générateur', icon: Shuffle },
+  { value: 'prices', label: 'Prix', icon: DollarSign },
+  { value: 'calendar', label: 'Calendrier', icon: Calendar },
+] as const;
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
@@ -157,10 +165,10 @@ const Index = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Chargement...</p>
         </div>
       </div>
     );
@@ -172,30 +180,32 @@ const Index = () => {
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId) ?? null;
 
+  const firstName = (user.user_metadata?.full_name || user.email || '').split(' ')[0].split('@')[0];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="bg-orange-100 p-2 rounded-lg">
-                <ChefHat className="h-6 w-6 text-orange-600" />
+              <div className="bg-brand-gradient p-2.5 rounded-2xl shadow-warm">
+                <ChefHat className="h-6 w-6 text-white" strokeWidth={2.2} />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">AI Menu Gestion</h1>
-                <p className="text-sm text-gray-500">Assistant IA pour menus camerounais</p>
+                <h1 className="text-lg sm:text-xl font-extrabold text-brand-gradient leading-tight">AI Menu Gestion</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">Assistante cuisine intelligente</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-2 min-w-0">
-                <User className="h-4 w-4 text-gray-500 shrink-0" />
-                <span className="text-sm text-gray-700 truncate max-w-[110px] sm:max-w-none">
+              <div className="flex items-center gap-2 min-w-0 rounded-full bg-secondary px-3 py-1.5">
+                <User className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm text-secondary-foreground font-semibold truncate max-w-[90px] sm:max-w-none">
                   {user.user_metadata?.full_name || user.email}
                 </span>
               </div>
-              <Button variant="outline" onClick={signOut} className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" onClick={signOut} className="flex items-center gap-2 shrink-0 rounded-full">
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Déconnexion</span>
               </Button>
@@ -205,22 +215,27 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-28 md:pb-10">
         {/* Welcome Section */}
         <div className="mb-8">
-          <Card className="bg-gradient-to-r from-orange-500 to-red-500 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+          <Card className="bg-brand-gradient text-white border-0 shadow-soft overflow-hidden relative">
+            <div className="h-1.5 bg-flag-strip" />
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">
-                    Bienvenue dans votre gestionnaire de menus IA ! 🍽️
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold backdrop-blur-sm mb-3">
+                    <Sparkles className="h-3.5 w-3.5" /> Propulsé par l'IA
+                  </span>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold mb-2">
+                    Bonjour {firstName} ! 👋
                   </h2>
-                  <p className="text-orange-100">
-                    Analysez vos menus, gérez les prix des ingrédients et générez des plans mensuels automatiquement
+                  <p className="text-white/90 max-w-xl">
+                    Analysez vos plats, suivez les prix du marché et générez vos plans mensuels
+                    en quelques secondes.
                   </p>
                 </div>
-                <div className="hidden md:block">
-                  <div className="bg-white/20 p-4 rounded-lg">
+                <div className="hidden md:block shrink-0">
+                  <div className="bg-white/20 p-4 rounded-3xl backdrop-blur-sm">
                     <TrendingUp className="h-12 w-12 text-white" />
                   </div>
                 </div>
@@ -231,27 +246,18 @@ const Index = () => {
 
         {/* Navigation Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 bg-white shadow-sm">
-            <TabsTrigger value="upload" className="flex items-center gap-2">
-              <Camera className="h-4 w-4" />
-              <span className="hidden sm:inline">Analyser Menu</span>
-            </TabsTrigger>
-            <TabsTrigger value="library" className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Bibliothèque</span>
-            </TabsTrigger>
-            <TabsTrigger value="generator" className="flex items-center gap-2">
-              <Shuffle className="h-4 w-4" />
-              <span className="hidden sm:inline">Générateur</span>
-            </TabsTrigger>
-            <TabsTrigger value="prices" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              <span className="hidden sm:inline">Prix & Inflation</span>
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              <span className="hidden sm:inline">Calendrier</span>
-            </TabsTrigger>
+          {/* Onglets — barre supérieure (tablette / ordinateur) */}
+          <TabsList className="hidden md:grid w-full grid-cols-5 h-auto bg-card shadow-warm rounded-2xl p-1.5 gap-1">
+            {NAV_ITEMS.map(({ value, label, icon: Icon }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="flex items-center gap-2 rounded-xl py-2.5 font-semibold data-[state=active]:bg-brand-gradient data-[state=active]:text-white"
+              >
+                <Icon className="h-4 w-4" />
+                <span className="text-sm">{label}</span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Tab Contents */}
@@ -325,65 +331,84 @@ const Index = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Quick Stats */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <ChefHat className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Menus Créés</p>
-                  <p className="text-xl font-semibold">{stats.menusCount}</p>
-                </div>
+        {/* Quick Stats — tuiles « bento » colorées */}
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <Card className="border-0 shadow-warm rounded-3xl bg-primary/10">
+            <CardContent className="p-4 sm:p-5">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                <ChefHat className="h-5 w-5" />
               </div>
+              <p className="text-3xl font-extrabold leading-none text-foreground">{stats.menusCount}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">Menus créés</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-green-100 p-2 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Budget Moyen</p>
-                  <p className="text-xl font-semibold">{stats.avgBudget.toLocaleString('fr-FR')} FCFA</p>
-                </div>
+          <Card className="border-0 shadow-warm rounded-3xl bg-accent/25">
+            <CardContent className="p-4 sm:p-5">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
+                <DollarSign className="h-5 w-5" />
               </div>
+              <p className="text-2xl sm:text-3xl font-extrabold leading-none text-foreground truncate">
+                {stats.avgBudget.toLocaleString('fr-FR')}
+              </p>
+              <p className="mt-1.5 text-sm text-muted-foreground">Budget moyen (FCFA)</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-orange-100 p-2 rounded-lg">
-                  <TrendingUp className="h-5 w-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Inflation Moyenne</p>
-                  <p className="text-xl font-semibold">{stats.avgInflation.toFixed(1)}%</p>
-                </div>
+          <Card className="border-0 shadow-warm rounded-3xl bg-destructive/10">
+            <CardContent className="p-4 sm:p-5">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-destructive text-destructive-foreground">
+                <TrendingUp className="h-5 w-5" />
               </div>
+              <p className="text-3xl font-extrabold leading-none text-foreground">{stats.avgInflation.toFixed(1)}%</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">Inflation moyenne</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-purple-100 p-2 rounded-lg">
-                  <Calendar className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Plans Mensuels</p>
-                  <p className="text-xl font-semibold">{stats.plansCount}</p>
-                </div>
+          <Card className="border-0 shadow-warm rounded-3xl bg-primary/10">
+            <CardContent className="p-4 sm:p-5">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                <Calendar className="h-5 w-5" />
               </div>
+              <p className="text-3xl font-extrabold leading-none text-foreground">{stats.plansCount}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">Plans mensuels</p>
             </CardContent>
           </Card>
         </div>
       </main>
+
+      {/* Navigation basse — style appli mobile (téléphone uniquement) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border/60 bg-card/90 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+        <div className="grid grid-cols-5">
+          {NAV_ITEMS.map(({ value, label, icon: Icon }) => {
+            const active = activeTab === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setActiveTab(value)}
+                aria-current={active ? 'page' : undefined}
+                className="flex flex-col items-center gap-1 pt-2 pb-1.5 focus:outline-none"
+              >
+                <span
+                  className={`flex h-9 w-12 items-center justify-center rounded-full transition-colors ${
+                    active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span
+                  className={`text-[10px] font-semibold ${
+                    active ? 'text-primary' : 'text-muted-foreground'
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 };

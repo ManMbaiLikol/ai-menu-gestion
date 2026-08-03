@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from './AuthProvider';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChefHat, Star } from 'lucide-react';
 
 export const AuthForm: React.FC = () => {
   const { signIn, signUp } = useAuth();
@@ -42,14 +42,29 @@ export const AuthForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-orange-800">
-            🍽️ AI Menu Gestion
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* En-tête de marque */}
+        <div className="text-center mb-6">
+          <div className="relative mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-brand-gradient shadow-warm">
+            <ChefHat className="h-11 w-11 text-white" strokeWidth={2.2} />
+            <Star className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-white p-0.5 fill-accent text-accent" />
+          </div>
+          <h1 className="text-3xl font-extrabold text-brand-gradient">AI Menu Gestion</h1>
+          <p className="mt-2 text-muted-foreground flex items-center justify-center gap-1.5">
+            <Star className="h-4 w-4 fill-accent text-accent" />
+            Votre assistante cuisine intelligente
+          </p>
+        </div>
+
+      <Card className="w-full shadow-warm border-border/60 overflow-hidden">
+        <div className="h-1.5 bg-flag-strip" />
+        <CardHeader className="text-center pb-2">
+          <CardTitle className="text-xl font-bold">
+            Bienvenue 👩🏾‍🍳
           </CardTitle>
           <CardDescription>
-            Votre assistant IA pour la gestion des menus camerounais
+            Planifiez vos menus, maîtrisez votre budget, cuisinez sereinement.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -151,6 +166,11 @@ export const AuthForm: React.FC = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          📲 Astuce : ajoutez l'application à votre écran d'accueil pour un accès rapide.
+        </p>
+      </div>
     </div>
   );
 };

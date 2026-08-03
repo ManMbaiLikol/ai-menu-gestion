@@ -336,7 +336,7 @@ export const MenuUpload: React.FC<{ onChanged?: () => void }> = ({ onChanged }) 
           {/* Image Upload */}
           <div className="space-y-4">
             <Label>Image du Menu (Optionnel)</Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+            <div className="border-2 border-dashed border-gold rounded-2xl p-6 text-center bg-muted/30">
               {imagePreview ? (
                 <div className="relative">
                   <img src={imagePreview} alt="Preview" className="max-h-64 mx-auto rounded-lg" />
@@ -464,7 +464,7 @@ export const MenuUpload: React.FC<{ onChanged?: () => void }> = ({ onChanged }) 
             <Label>Ingrédients</Label>
             
             {/* Add new ingredient */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 p-4 border rounded-lg bg-gray-50">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 p-4 border rounded-2xl bg-muted/40">
               <Input
                 placeholder="Nom ingrédient"
                 value={newIngredient.name}
