@@ -484,78 +484,81 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
       {/* Liste des menus */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredMenus.map((menu) => (
-          <Card key={menu.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-0">
-              {menu.image_url && (
-                <div className="h-48 bg-muted rounded-t-3xl overflow-hidden">
-                  <img
-                    src={menu.image_url}
-                    alt={menu.name}
-                    className="w-full h-full object-cover"
-                  />
+          <Card key={menu.id} className="group relative overflow-hidden hover:shadow-lg transition-shadow">
+            {/* Photo du plat en filigrane (si disponible) */}
+            {menu.image_url && (
+              <>
+                <img
+                  src={menu.image_url}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.13] transition-opacity duration-300 group-hover:opacity-25 dark:opacity-10 dark:group-hover:opacity-20"
+                />
+                {/* Dégradé pour préserver la lisibilité du texte */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card via-card/60 to-card/20" />
+              </>
+            )}
+            <CardContent className="relative p-4">
+              <div className="flex items-start justify-between mb-2 gap-2">
+                <h3 className="font-semibold text-lg line-clamp-1">{menu.name}</h3>
+                <div className="flex gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Voir les détails"
+                    onClick={() => openDetail(menu)}
+                  >
+                    <ChefHat className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Modifier le menu"
+                    onClick={() => openEditor(menu)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteMenu(menu)}
+                    disabled={loading}
+                    className="text-destructive hover:text-destructive"
+                    title="Supprimer le menu"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2 gap-2">
-                  <h3 className="font-semibold text-lg line-clamp-1">{menu.name}</h3>
-                  <div className="flex gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      title="Voir les détails"
-                      onClick={() => openDetail(menu)}
-                    >
-                      <ChefHat className="h-4 w-4" />
-                    </Button>
+              </div>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      title="Modifier le menu"
-                      onClick={() => openEditor(menu)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+              <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
+                {menu.description || 'Aucune description disponible'}
+              </p>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => deleteMenu(menu)}
-                      disabled={loading}
-                      className="text-destructive hover:text-destructive"
-                      title="Supprimer le menu"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+              <div className="flex items-center justify-between mb-2">
+                <Badge className={getCuisineColor(menu.cuisine_type)}>
+                  {menu.cuisine_type}
+                </Badge>
+                {menu.is_analyzed_from_image && (
+                  <Badge variant="secondary">Analysé par IA</Badge>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    {menu.serving_size}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    {menu.total_cost} FCFA
                   </div>
                 </div>
-
-                <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
-                  {menu.description || 'Aucune description disponible'}
-                </p>
-
-                <div className="flex items-center justify-between mb-2">
-                  <Badge className={getCuisineColor(menu.cuisine_type)}>
-                    {menu.cuisine_type}
-                  </Badge>
-                  {menu.is_analyzed_from_image && (
-                    <Badge variant="secondary">Analysé par IA</Badge>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {menu.serving_size}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="h-3 w-3" />
-                      {menu.total_cost} FCFA
-                    </div>
-                  </div>
-                  <span>{formatDate(menu.created_at)}</span>
-                </div>
+                <span>{formatDate(menu.created_at)}</span>
               </div>
             </CardContent>
           </Card>
