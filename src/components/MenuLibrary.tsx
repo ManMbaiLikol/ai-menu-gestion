@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChefHat, Edit, Trash2, DollarSign, Users, Clock, Search, Plus, X, Loader2 } from 'lucide-react';
+import { ChefHat, Edit, Trash2, DollarSign, Users, Clock, Search, Plus, X, Loader2, Upload, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
@@ -78,6 +78,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
   const [editOpen, setEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [imgUploading, setImgUploading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -172,6 +173,27 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
   // --- Manipulation du brouillon ---------------------------------------------
   const patchMenu = (patch: Partial<Menu>) =>
     setEditingMenu(prev => (prev ? { ...prev, ...patch } : prev));
+
+  // Upload d'une nouvelle photo pour le menu en cours d'édition (stockage Supabase).
+  const handleEditorImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingMenu) return;
+    setImgUploading(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID?.() ?? Math.random()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('menu-images').upload(fileName, file);
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from('menu-images').getPublicUrl(fileName);
+      patchMenu({ image_url: publicUrl });
+      toast({ title: 'Photo mise à jour', description: 'Pensez à « Sauvegarder » pour enregistrer.' });
+    } catch (err: any) {
+      toast({ title: "Erreur lors de l'envoi de la photo", description: err.message, variant: 'destructive' });
+    } finally {
+      setImgUploading(false);
+      e.target.value = ''; // permet de re-sélectionner le même fichier
+    }
+  };
 
   const addDish = () =>
     setEditItems(prev => [
@@ -273,6 +295,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
           serving_size: Number(editingMenu.serving_size) || 1,
           meal_type: editingMenu.meal_type,
           preparation_time: Number(editingMenu.preparation_time) || 0,
+          image_url: editingMenu.image_url || null,
         })
         .eq('id', editingMenu.id)
         .eq('user_id', user.id);
@@ -484,25 +507,54 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
       {/* Liste des menus */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredMenus.map((menu) => (
-          <Card key={menu.id} className="group relative overflow-hidden hover:shadow-lg transition-shadow">
-            {/* Photo du plat en filigrane (si disponible) */}
-            {menu.image_url && (
-              <>
-                <img
-                  src={menu.image_url}
-                  alt=""
-                  aria-hidden="true"
-                  loading="lazy"
-                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25 transition-opacity duration-300 group-hover:opacity-40 dark:opacity-20 dark:group-hover:opacity-[0.32]"
-                />
-                {/* Dégradé pour préserver la lisibilité du texte */}
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-card via-card/70 to-card/30" />
-              </>
-            )}
-            <CardContent className="relative p-4">
-              <div className="flex items-start justify-between mb-2 gap-2">
-                <h3 className="font-semibold text-lg line-clamp-1">{menu.name}</h3>
-                <div className="flex gap-1 shrink-0">
+          <Card key={menu.id} className="group h-full overflow-hidden hover:shadow-lg transition-shadow">
+            <div className="flex items-stretch h-full">
+              {/* Photo du plat sur ~1/3 du cadre (si disponible) */}
+              {menu.image_url && (
+                <div className="w-1/3 shrink-0 overflow-hidden bg-muted">
+                  <img
+                    src={menu.image_url}
+                    alt={menu.name}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+              )}
+              <CardContent className="p-4 flex-1 min-w-0 flex flex-col">
+                {/* Titre mis en avant, sur toute la largeur */}
+                <h3 className="font-extrabold text-lg leading-snug mb-1.5 line-clamp-2 text-foreground">
+                  {menu.name}
+                </h3>
+
+                <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
+                  {menu.description || 'Aucune description disponible'}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <Badge className={getCuisineColor(menu.cuisine_type)}>
+                    {menu.cuisine_type}
+                  </Badge>
+                  {menu.is_analyzed_from_image && (
+                    <Badge variant="secondary">Analysé par IA</Badge>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-3 w-3" />
+                      {menu.serving_size}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" />
+                      {menu.total_cost} FCFA
+                    </div>
+                  </div>
+                  <span>{formatDate(menu.created_at)}</span>
+                </div>
+
+                {/* Actions déplacées en bas de carte */}
+                <div className="mt-auto pt-3 flex items-center gap-1 border-t border-border/60">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -510,8 +562,8 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                     onClick={() => openDetail(menu)}
                   >
                     <ChefHat className="h-4 w-4" />
+                    <span className="text-xs">Détails</span>
                   </Button>
-
                   <Button
                     variant="ghost"
                     size="sm"
@@ -519,48 +571,21 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                     onClick={() => openEditor(menu)}
                   >
                     <Edit className="h-4 w-4" />
+                    <span className="text-xs">Modifier</span>
                   </Button>
-
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="icon"
                     onClick={() => deleteMenu(menu)}
                     disabled={loading}
-                    className="text-destructive hover:text-destructive"
+                    className="ml-auto text-destructive hover:text-destructive"
                     title="Supprimer le menu"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-
-              <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
-                {menu.description || 'Aucune description disponible'}
-              </p>
-
-              <div className="flex items-center justify-between mb-2">
-                <Badge className={getCuisineColor(menu.cuisine_type)}>
-                  {menu.cuisine_type}
-                </Badge>
-                {menu.is_analyzed_from_image && (
-                  <Badge variant="secondary">Analysé par IA</Badge>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    {menu.serving_size}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <DollarSign className="h-3 w-3" />
-                    {menu.total_cost} FCFA
-                  </div>
-                </div>
-                <span>{formatDate(menu.created_at)}</span>
-              </div>
-            </CardContent>
+              </CardContent>
+            </div>
           </Card>
         ))}
       </div>
@@ -668,6 +693,50 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
             <div className="space-y-6">
               {/* Infos de base */}
               <div className="space-y-4">
+                {/* Photo du menu */}
+                <div className="space-y-2">
+                  <Label>Photo du menu</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border bg-muted flex items-center justify-center">
+                      {editingMenu.image_url ? (
+                        <img src={editingMenu.image_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                      )}
+                    </div>
+                    <div className="flex flex-col items-start gap-2">
+                      <input
+                        id="editor-image-input"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleEditorImageUpload}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={imgUploading}
+                        onClick={() => document.getElementById('editor-image-input')?.click()}
+                      >
+                        {imgUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        {editingMenu.image_url ? 'Changer la photo' : 'Ajouter une photo'}
+                      </Button>
+                      {editingMenu.image_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => patchMenu({ image_url: '' })}
+                        >
+                          <X className="h-4 w-4" /> Retirer la photo
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Nom du menu</Label>
                   <Input
