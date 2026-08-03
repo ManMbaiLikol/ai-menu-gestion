@@ -396,67 +396,87 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
     return months[month - 1];
   };
 
+  // Puce de repas (mêmes teintes que la Vue Calendrier, compatibles mode sombre).
+  const mealChip = (emoji: string, name: string, cls: string) => (
+    <div className={`flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] font-medium ${cls}`}>
+      <span className="shrink-0">{emoji}</span>
+      <span className="truncate">{name}</span>
+    </div>
+  );
+
   const renderCalendarView = (planData: any) => {
     const month = planData.month ?? selectedMonth;
     const year = planData.year ?? selectedYear;
     const daysInMonth = new Date(year, month, 0).getDate();
     const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+    const now = new Date();
+    const isCurrentMonth = now.getFullYear() === year && now.getMonth() + 1 === month;
+    const todayDate = now.getDate();
 
     const days = [];
 
     // Jours vides au début
     for (let i = 0; i < firstDayOfWeek; i++) {
-      days.push(<div key={`empty-${i}`} className="p-2"></div>);
+      days.push(<div key={`empty-${i}`} />);
     }
 
     // Jours du mois — cliquables pour éditer le menu du jour
     for (let day = 1; day <= daysInMonth; day++) {
       const dayData = planData.menu_data?.[day];
+      const isToday = isCurrentMonth && day === todayDate;
       days.push(
         <button
           type="button"
           key={day}
           onClick={() => openDayEditor(day)}
           title="Cliquer pour modifier le menu de ce jour"
-          className="group relative text-left p-2 border rounded-2xl bg-card min-h-[88px] sm:min-h-[120px] hover:border-primary hover:shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+          className={`group relative flex flex-col gap-1 text-left rounded-2xl border p-2 min-h-[94px] sm:min-h-[126px] transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+            isToday
+              ? 'border-primary/50 ring-2 ring-primary/40 bg-card'
+              : dayData
+                ? 'border-border/70 bg-card hover:border-primary/50 hover:shadow-md'
+                : 'border-border/50 bg-muted/30 hover:border-primary/50'
+          }`}
         >
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-semibold text-sm">{day}</span>
+          <div className="flex items-center justify-between">
+            <span
+              className={`inline-flex h-6 min-w-[1.5rem] w-fit items-center justify-center rounded-full px-1.5 text-xs font-bold ${
+                isToday ? 'bg-primary text-primary-foreground' : 'text-foreground'
+              }`}
+            >
+              {day}
+            </span>
             <Pencil className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary" />
           </div>
           {dayData ? (
-            <div className="space-y-1 text-xs">
-              {dayData.breakfast && (
-                <div className="bg-yellow-100 p-1 rounded text-yellow-800 truncate">
-                  🌅 {dayData.breakfast.name}
-                </div>
-              )}
-              {dayData.lunch && (
-                <div className="bg-orange-100 p-1 rounded text-orange-800 truncate">
-                  🌞 {dayData.lunch.name}
-                </div>
-              )}
-              {dayData.dinner && (
-                <div className="bg-blue-100 p-1 rounded text-blue-800 truncate">
-                  🌙 {dayData.dinner.name}
-                </div>
-              )}
-              <div className="text-primary font-semibold">
+            <div className="flex flex-1 flex-col gap-1">
+              {dayData.breakfast &&
+                mealChip('🌅', dayData.breakfast.name, 'bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300')}
+              {dayData.lunch &&
+                mealChip('🌞', dayData.lunch.name, 'bg-orange-100 text-orange-800 dark:bg-orange-400/15 dark:text-orange-300')}
+              {dayData.dinner &&
+                mealChip('🌙', dayData.dinner.name, 'bg-sky-100 text-sky-800 dark:bg-sky-400/15 dark:text-sky-300')}
+              <div className="mt-auto inline-flex w-fit items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary dark:bg-primary/20">
                 {dayData.totalDayCost} FCFA
               </div>
             </div>
           ) : (
-            <span className="text-[11px] text-muted-foreground group-hover:text-primary">+ Ajouter</span>
+            <span className="mt-auto text-[11px] font-medium text-muted-foreground/70 group-hover:text-primary">
+              + Ajouter
+            </span>
           )}
         </button>
       );
     }
 
     return (
-      <div className="overflow-x-auto -mx-2 px-2">
-        <div className="grid grid-cols-7 gap-1 sm:gap-2 min-w-[640px]">
+      <div className="overflow-x-auto -mx-2 px-2 pb-1">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2 min-w-[680px]">
           {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
-            <div key={day} className="p-2 text-center font-semibold bg-secondary text-secondary-foreground rounded-lg text-xs sm:text-sm">
+            <div
+              key={day}
+              className="rounded-lg bg-muted py-2 text-center text-[11px] sm:text-sm font-bold uppercase tracking-wide text-muted-foreground"
+            >
               {day}
             </div>
           ))}
@@ -649,8 +669,20 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
                 : 'Cliquez sur une date pour ajuster son menu avant de sauvegarder.'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {renderCalendarView(generatedPlan)}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <span className="font-semibold">Légende :</span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" /> 🌅 Petit-déjeuner
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-orange-400" /> 🌞 Déjeuner
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-sky-400" /> 🌙 Dîner
+              </span>
+            </div>
           </CardContent>
         </Card>
       )}
