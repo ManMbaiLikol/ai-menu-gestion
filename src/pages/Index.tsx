@@ -59,7 +59,7 @@ const NAV_ITEMS = [
   { value: 'calendar', label: 'Calendrier', icon: Calendar },
 ] as const;
 
-// Onglet supplémentaire, ajouté seulement pour les administrateurs.
+// Onglet supplémentaire, placé en tête et réservé aux administrateurs.
 const ADMIN_NAV_ITEM = { value: 'admin', label: 'Admin', icon: Shield } as const;
 
 const Index = () => {
@@ -227,10 +227,11 @@ const Index = () => {
 
   const firstName = (user.user_metadata?.full_name || user.email || '').split(' ')[0].split('@')[0];
 
-  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : [...NAV_ITEMS];
+  // « Admin » ouvre la barre puisqu'il sert d'accueil aux administrateurs.
+  const navItems = isAdmin ? [ADMIN_NAV_ITEM, ...NAV_ITEMS] : [...NAV_ITEMS];
   // Le rôle est résolu après le premier rendu : si l'onglet actif disparaît
   // (droits retirés), on retombe sur le premier onglet plutôt que sur du vide.
-  const currentTab = navItems.some(i => i.value === activeTab) ? activeTab : NAV_ITEMS[0].value;
+  const currentTab = navItems.some(i => i.value === activeTab) ? activeTab : navItems[0].value;
   const navColumns = { gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` };
 
   return (
