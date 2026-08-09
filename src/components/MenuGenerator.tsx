@@ -17,6 +17,7 @@ import { Calendar, Shuffle, Filter, DollarSign, Users, Pencil, Sparkles } from '
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
+import { fetchAuthorNames, AUTHOR_FALLBACK } from '@/lib/authors';
 
 // Créneaux de repas disponibles à la génération (clé technique <-> libellé UI).
 type MealKey = 'breakfast' | 'lunch' | 'dinner';
@@ -29,6 +30,7 @@ const MEAL_OPTIONS: { key: MealKey; label: string; emoji: string }[] = [
 
 interface Menu {
   id: string;
+  user_id: string;
   name: string;
   description: string;
   cuisine_type: string;
@@ -67,7 +69,11 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
   const [loading, setLoading] = useState(false);
   // mode de génération en cours (null = aucune génération), pour l'état des 2 boutons
   const [generatingMode, setGeneratingMode] = useState<'standard' | 'strict' | null>(null);
+  // Tous les menus visibles (bibliothèque partagée), tous auteurs confondus.
   const [menus, setMenus] = useState<Menu[]>([]);
+  const [authorNames, setAuthorNames] = useState<Record<string, string>>({});
+  // Source des menus utilisés pour la génération et l'édition par jour.
+  const [menuSource, setMenuSource] = useState<'all' | 'mine'>('all');
   const [monthlyPlans, setMonthlyPlans] = useState<MonthlyPlan[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -109,16 +115,19 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
     }
   }, [user]);
 
+  // Toute la bibliothèque partagée : le générateur peut piocher dans les menus
+  // de la communauté, pas seulement dans ceux de l'utilisateur connecté.
   const fetchMenus = async () => {
     try {
       const { data, error } = await supabase
         .from('menus')
         .select('*')
-        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMenus(data || []);
+      const rows = (data || []) as Menu[];
+      setMenus(rows);
+      setAuthorNames(await fetchAuthorNames(rows.map(m => m.user_id)));
     } catch (error: any) {
       toast({
         title: "Erreur lors du chargement des menus",
@@ -127,6 +136,15 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
       });
     }
   };
+
+  const isOwnMenu = (menu: Menu) => !!user && menu.user_id === user.id;
+
+  const authorLabel = (menu: Menu) =>
+    isOwnMenu(menu) ? 'Vous' : (authorNames[menu.user_id] || AUTHOR_FALLBACK);
+
+  // Menus réellement proposés à la génération / à l'édition par jour.
+  const availableMenus = menuSource === 'mine' ? menus.filter(isOwnMenu) : menus;
+  const myMenusCount = menus.filter(isOwnMenu).length;
 
   const fetchMonthlyPlans = async () => {
     try {
@@ -152,10 +170,12 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
   // `enforceBudget` active le mode strict (bouton « Plan Mensuel IA ») qui borne
   // le total mensuel au budget maximum de façon déterministe.
   const generateMonthlyPlan = async (enforceBudget = false) => {
-    if (menus.length === 0) {
+    if (availableMenus.length === 0) {
       toast({
         title: "Aucun menu disponible",
-        description: "Créez d'abord quelques menus avant de générer un plan mensuel",
+        description: menuSource === 'mine'
+          ? "Vous n'avez encore créé aucun menu. Basculez sur « Toute la bibliothèque » ou créez un menu."
+          : "La bibliothèque est vide. Créez d'abord quelques menus avant de générer un plan mensuel.",
         variant: "destructive",
       });
       return;
@@ -185,7 +205,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
 
       const { data, error } = await supabase.functions.invoke('generate-menu-plan', {
         body: {
-          menus: menus.map(m => ({
+          menus: availableMenus.map(m => ({
             id: m.id,
             name: m.name,
             total_cost: m.total_cost,
@@ -351,6 +371,8 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
   };
 
   // Construit l'entrée d'un créneau à partir d'un menu sélectionné.
+  // On cherche dans `menus` (et non `availableMenus`) pour qu'un plan sauvegardé
+  // reste résolvable même si le filtre de source est restreint entre-temps.
   const slotFromMenu = (menuId: string) => {
     if (menuId === 'none') return null;
     const menu = menus.find(m => m.id === menuId);
@@ -561,6 +583,27 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
           </div>
 
           <div className="mt-4 space-y-2">
+            <Label>Menus utilisés</Label>
+            <Select value={menuSource} onValueChange={(v) => setMenuSource(v as 'all' | 'mine')}>
+              <SelectTrigger className="w-full md:w-[320px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  Toute la bibliothèque ({menus.length} menus)
+                </SelectItem>
+                <SelectItem value="mine">
+                  Mes menus uniquement ({myMenusCount})
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Les menus partagés par les autres utilisateurs sont chiffrés avec leurs propres
+              prix d'ingrédients : les coûts affichés peuvent différer des vôtres.
+            </p>
+          </div>
+
+          <div className="mt-4 space-y-2">
             <Label>Repas à générer</Label>
             <p className="text-xs text-muted-foreground">
               Sélectionnez les repas à inclure chaque jour. Décochez ceux dont vous n'avez pas besoin
@@ -750,9 +793,10 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
             </DialogDescription>
           </DialogHeader>
 
-          {menus.length === 0 ? (
+          {availableMenus.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">
-              Aucun menu disponible. Créez d'abord des menus dans l'onglet « Analyser Menu ».
+              Aucun menu disponible. Créez d'abord des menus dans l'onglet « Analyser Menu »,
+              ou élargissez la source à toute la bibliothèque.
             </p>
           ) : (
             <div className="space-y-4">
@@ -763,7 +807,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
               ] as const)
                 .filter(slot => filters.mealTypes.includes(slot.key))
                 .map(slot => {
-                const options = menus.filter(m => m.meal_type === slot.mealType);
+                const options = availableMenus.filter(m => m.meal_type === slot.mealType);
                 return (
                   <div key={slot.key} className="space-y-2">
                     <Label>{slot.label}</Label>
@@ -781,6 +825,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
                         {options.map(m => (
                           <SelectItem key={m.id} value={m.id}>
                             {m.name} — {Number(m.total_cost) || 0} FCFA
+                            {!isOwnMenu(m) && ` · ${authorLabel(m)}`}
                           </SelectItem>
                         ))}
                       </SelectContent>

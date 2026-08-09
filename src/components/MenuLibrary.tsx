@@ -11,6 +11,7 @@ import { ChefHat, Edit, Trash2, DollarSign, Users, Clock, Search, Plus, X, Loade
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
+import { fetchAuthorNames, AUTHOR_FALLBACK } from '@/lib/authors';
 
 interface Menu {
   id: string;
@@ -102,7 +103,7 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
       if (error) throw error;
       const rows = (data || []) as Menu[];
       setMenus(rows);
-      await fetchAuthorNames(rows);
+      setAuthorNames(await fetchAuthorNames(rows.map(m => m.user_id)));
     } catch (error: any) {
       toast({
         title: "Erreur lors du chargement des menus",
@@ -112,34 +113,10 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
     }
   };
 
-  // `menus.user_id` pointe vers auth.users (illisible côté client) : on résout
-  // les noms via la table publique `profiles`, en une requête.
-  const fetchAuthorNames = async (rows: Menu[]) => {
-    const ids = Array.from(new Set(rows.map(m => m.user_id).filter(Boolean)));
-    if (ids.length === 0) {
-      setAuthorNames({});
-      return;
-    }
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, username')
-      .in('id', ids);
-
-    // Échec non bloquant : les cartes s'affichent sans le nom du créateur.
-    if (error) return;
-
-    const names: Record<string, string> = {};
-    data?.forEach(p => {
-      const label = (p.full_name || p.username || '').trim();
-      if (label) names[p.id] = label;
-    });
-    setAuthorNames(names);
-  };
-
   const isOwner = (menu: Menu) => !!user && menu.user_id === user.id;
 
   const authorLabel = (menu: Menu) =>
-    isOwner(menu) ? 'Vous' : (authorNames[menu.user_id] || 'Utilisateur');
+    isOwner(menu) ? 'Vous' : (authorNames[menu.user_id] || AUTHOR_FALLBACK);
 
   const openDetail = async (menu: Menu) => {
     setSelectedMenu(menu);
