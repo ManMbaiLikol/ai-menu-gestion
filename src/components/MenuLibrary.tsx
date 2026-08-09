@@ -7,13 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChefHat, Edit, Trash2, DollarSign, Users, Clock, Search, Plus, X, Loader2, Upload, Image as ImageIcon } from 'lucide-react';
+import { ChefHat, Edit, Trash2, DollarSign, Users, Clock, Search, Plus, X, Loader2, Upload, Image as ImageIcon, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
 
 interface Menu {
   id: string;
+  user_id: string;
   name: string;
   description: string;
   cuisine_type: string;
@@ -69,8 +70,11 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCuisine, setFilterCuisine] = useState('all');
+  const [filterOwner, setFilterOwner] = useState<'all' | 'mine'>('all');
   const [selectedMenu, setSelectedMenu] = useState<Menu | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  // Nom affichable du créateur, par user_id (la bibliothèque est partagée).
+  const [authorNames, setAuthorNames] = useState<Record<string, string>>({});
 
   // --- État d'édition complète ---
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
@@ -86,16 +90,19 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
     }
   }, [user]);
 
+  // La bibliothèque est partagée : on charge les menus de tous les utilisateurs
+  // (la RLS autorise la lecture ; l'écriture reste réservée au créateur).
   const fetchMenus = async () => {
     try {
       const { data, error } = await supabase
         .from('menus')
         .select('*')
-        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMenus(data || []);
+      const rows = (data || []) as Menu[];
+      setMenus(rows);
+      await fetchAuthorNames(rows);
     } catch (error: any) {
       toast({
         title: "Erreur lors du chargement des menus",
@@ -104,6 +111,35 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
       });
     }
   };
+
+  // `menus.user_id` pointe vers auth.users (illisible côté client) : on résout
+  // les noms via la table publique `profiles`, en une requête.
+  const fetchAuthorNames = async (rows: Menu[]) => {
+    const ids = Array.from(new Set(rows.map(m => m.user_id).filter(Boolean)));
+    if (ids.length === 0) {
+      setAuthorNames({});
+      return;
+    }
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, username')
+      .in('id', ids);
+
+    // Échec non bloquant : les cartes s'affichent sans le nom du créateur.
+    if (error) return;
+
+    const names: Record<string, string> = {};
+    data?.forEach(p => {
+      const label = (p.full_name || p.username || '').trim();
+      if (label) names[p.id] = label;
+    });
+    setAuthorNames(names);
+  };
+
+  const isOwner = (menu: Menu) => !!user && menu.user_id === user.id;
+
+  const authorLabel = (menu: Menu) =>
+    isOwner(menu) ? 'Vous' : (authorNames[menu.user_id] || 'Utilisateur');
 
   const openDetail = async (menu: Menu) => {
     setSelectedMenu(menu);
@@ -128,6 +164,15 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
 
   // Charge le menu + ses plats + leurs ingrédients dans le brouillon d'édition.
   const openEditor = async (menu: Menu) => {
+    // Garde-fou : la RLS refuserait l'écriture, autant le dire clairement.
+    if (!isOwner(menu)) {
+      toast({
+        title: 'Modification impossible',
+        description: `Ce menu a été créé par ${authorLabel(menu)}. Seul son auteur peut le modifier.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setEditingMenu({ ...menu });
     setEditItems([]);
     setEditOpen(true);
@@ -394,6 +439,14 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
   };
 
   const deleteMenu = async (menu: Menu) => {
+    if (!isOwner(menu)) {
+      toast({
+        title: 'Suppression impossible',
+        description: `Ce menu a été créé par ${authorLabel(menu)}. Seul son auteur peut le supprimer.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!confirm(`Êtes-vous sûr de vouloir supprimer le menu "${menu.name}" ?`)) return;
 
     setLoading(true);
@@ -427,11 +480,16 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
   };
 
   const filteredMenus = menus.filter(menu => {
-    const matchesSearch = menu.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         menu.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = menu.name.toLowerCase().includes(term) ||
+                         menu.description?.toLowerCase().includes(term) ||
+                         authorLabel(menu).toLowerCase().includes(term);
     const matchesCuisine = filterCuisine === 'all' || menu.cuisine_type === filterCuisine;
-    return matchesSearch && matchesCuisine;
+    const matchesOwner = filterOwner === 'all' || isOwner(menu);
+    return matchesSearch && matchesCuisine && matchesOwner;
   });
+
+  const myMenusCount = menus.filter(isOwner).length;
 
   const getCuisineColor = (cuisineType: string) => {
     const colors = {
@@ -472,7 +530,8 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
             Bibliothèque de Menus
           </CardTitle>
           <CardDescription>
-            Gérez et consultez tous vos menus sauvegardés
+            Bibliothèque partagée : consultez les menus de toute la communauté.
+            Vous ne pouvez modifier et supprimer que les vôtres.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -498,6 +557,15 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                 <SelectItem value="africaine">Africaine</SelectItem>
                 <SelectItem value="internationale">Internationale</SelectItem>
                 <SelectItem value="fusion">Fusion</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterOwner} onValueChange={(v) => setFilterOwner(v as 'all' | 'mine')}>
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="Auteur" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les menus ({menus.length})</SelectItem>
+                <SelectItem value="mine">Mes menus ({myMenusCount})</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -537,6 +605,12 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                   {menu.is_analyzed_from_image && (
                     <Badge variant="secondary">Analysé par IA</Badge>
                   )}
+                  {!isOwner(menu) && (
+                    <Badge variant="outline" className="gap-1">
+                      <User className="h-3 w-3" />
+                      {authorLabel(menu)}
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -564,25 +638,34 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                     <ChefHat className="h-4 w-4" />
                     <span className="text-xs">Détails</span>
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    title="Modifier le menu"
-                    onClick={() => openEditor(menu)}
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span className="text-xs">Modifier</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteMenu(menu)}
-                    disabled={loading}
-                    className="ml-auto text-destructive hover:text-destructive"
-                    title="Supprimer le menu"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {/* Édition / suppression réservées au créateur du menu */}
+                  {isOwner(menu) ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Modifier le menu"
+                        onClick={() => openEditor(menu)}
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span className="text-xs">Modifier</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteMenu(menu)}
+                        disabled={loading}
+                        className="ml-auto text-destructive hover:text-destructive"
+                        title="Supprimer le menu"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      Menu de {authorLabel(menu)}
+                    </span>
+                  )}
                 </div>
               </CardContent>
             </div>
@@ -595,10 +678,12 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
           <CardContent className="text-center py-12">
             <ChefHat className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold text-muted-foreground mb-2">
-              {searchTerm || filterCuisine !== 'all' ? 'Aucun menu trouvé' : 'Aucun menu créé'}
+              {searchTerm || filterCuisine !== 'all' || filterOwner !== 'all'
+                ? 'Aucun menu trouvé'
+                : 'Aucun menu dans la bibliothèque'}
             </h3>
             <p className="text-muted-foreground">
-              {searchTerm || filterCuisine !== 'all'
+              {searchTerm || filterCuisine !== 'all' || filterOwner !== 'all'
                 ? 'Essayez de modifier vos critères de recherche'
                 : 'Commencez par créer votre premier menu'
               }
@@ -629,9 +714,13 @@ export const MenuLibrary: React.FC<{ onChanged?: () => void }> = ({ onChanged })
                 </div>
               </div>
 
-              <div>
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge className={getCuisineColor(selectedMenu.cuisine_type)}>
                   {selectedMenu.cuisine_type}
+                </Badge>
+                <Badge variant="outline" className="gap-1">
+                  <User className="h-3 w-3" />
+                  Créé par {authorLabel(selectedMenu)}
                 </Badge>
               </div>
 
