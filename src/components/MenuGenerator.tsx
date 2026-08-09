@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Calendar, Shuffle, Filter, DollarSign, Users, Pencil, Sparkles } from 'lucide-react';
+import { Calendar, Shuffle, Filter, DollarSign, Users, Pencil, Sparkles, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
@@ -44,6 +44,7 @@ interface Menu {
 
 interface MonthlyPlan {
   id: string;
+  user_id: string;
   month: number;
   year: number;
   budget_min: number;
@@ -80,6 +81,10 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
   const [generatedPlan, setGeneratedPlan] = useState<any>(null);
   // id du plan sauvegardé actuellement chargé (null = plan généré non encore sauvegardé)
   const [loadedPlanId, setLoadedPlanId] = useState<string | null>(null);
+  // auteur du plan chargé : un plan d'un autre utilisateur est en lecture seule
+  const [loadedPlanOwnerId, setLoadedPlanOwnerId] = useState<string | null>(null);
+  // filtre de la liste des plans sauvegardés (partagés entre utilisateurs)
+  const [planFilter, setPlanFilter] = useState<'all' | 'mine'>('all');
   // jour en cours d'édition dans le calendrier (null = aucun dialogue ouvert)
   const [editingDay, setEditingDay] = useState<number | null>(null);
   // brouillon de sélection pour le dialogue d'édition d'un jour
@@ -127,7 +132,9 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
       if (error) throw error;
       const rows = (data || []) as Menu[];
       setMenus(rows);
-      setAuthorNames(await fetchAuthorNames(rows.map(m => m.user_id)));
+      // Fusion : les auteurs des plans sont résolus par fetchMonthlyPlans.
+      const names = await fetchAuthorNames(rows.map(m => m.user_id));
+      setAuthorNames(prev => ({ ...prev, ...names }));
     } catch (error: any) {
       toast({
         title: "Erreur lors du chargement des menus",
@@ -138,24 +145,37 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
   };
 
   const isOwnMenu = (menu: Menu) => !!user && menu.user_id === user.id;
+  const isOwnPlan = (plan: MonthlyPlan) => !!user && plan.user_id === user.id;
 
-  const authorLabel = (menu: Menu) =>
-    isOwnMenu(menu) ? 'Vous' : (authorNames[menu.user_id] || AUTHOR_FALLBACK);
+  const nameFor = (userId: string) =>
+    user && userId === user.id ? 'Vous' : (authorNames[userId] || AUTHOR_FALLBACK);
+
+  const authorLabel = (menu: Menu) => nameFor(menu.user_id);
 
   // Menus réellement proposés à la génération / à l'édition par jour.
   const availableMenus = menuSource === 'mine' ? menus.filter(isOwnMenu) : menus;
   const myMenusCount = menus.filter(isOwnMenu).length;
 
+  // Plans sauvegardés : visibles par tous, éditables par leur seul auteur.
+  const visiblePlans = planFilter === 'mine' ? monthlyPlans.filter(isOwnPlan) : monthlyPlans;
+  const myPlansCount = monthlyPlans.filter(isOwnPlan).length;
+  // Un plan fraîchement généré (sans id) est toujours éditable ; un plan chargé
+  // ne l'est que s'il vous appartient.
+  const canEditPlan = !loadedPlanId || (!!user && loadedPlanOwnerId === user.id);
+
+  // Plans partagés : lisibles par tous, modifiables uniquement par leur auteur.
   const fetchMonthlyPlans = async () => {
     try {
       const { data, error } = await supabase
         .from('monthly_menu_plans')
         .select('*')
-        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setMonthlyPlans(data || []);
+      const rows = (data || []) as MonthlyPlan[];
+      setMonthlyPlans(rows);
+      const names = await fetchAuthorNames(rows.map(p => p.user_id));
+      setAuthorNames(prev => ({ ...prev, ...names }));
     } catch (error: any) {
       toast({
         title: "Erreur lors du chargement des plans mensuels",
@@ -241,6 +261,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
 
       setGeneratedPlan(planData);
       setLoadedPlanId(null);
+      setLoadedPlanOwnerId(null);
 
       if (enforceBudget && (data as any).within_budget === false) {
         // Stratégie « au plus proche + alerte » : le plan le moins cher dépasse le budget.
@@ -271,6 +292,16 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
 
   const saveMonthlyPlan = async () => {
     if (!generatedPlan || !user) return;
+
+    // Garde-fou : la RLS refuserait la mise à jour d'un plan d'un autre auteur.
+    if (!canEditPlan) {
+      toast({
+        title: 'Modification impossible',
+        description: `Ce plan a été généré par ${nameFor(loadedPlanOwnerId ?? '')}. Seul son auteur peut le modifier.`,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -346,6 +377,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
       total_estimated_cost: plan.total_estimated_cost,
     });
     setLoadedPlanId(plan.id);
+    setLoadedPlanOwnerId(plan.user_id);
     // Remonte vers la vue du plan
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -361,6 +393,8 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
 
   // Ouvre le dialogue d'édition d'un jour, pré-rempli avec le contenu existant.
   const openDayEditor = (day: number) => {
+    // Plan d'un autre utilisateur : consultation seule.
+    if (!canEditPlan) return;
     const dayData = generatedPlan?.menu_data?.[day] ?? {};
     setDayDraft({
       breakfast: dayData.breakfast?.id ?? 'none',
@@ -451,13 +485,18 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
           type="button"
           key={day}
           onClick={() => openDayEditor(day)}
-          title="Cliquer pour modifier le menu de ce jour"
+          disabled={!canEditPlan}
+          title={canEditPlan
+            ? 'Cliquer pour modifier le menu de ce jour'
+            : "Plan d'un autre utilisateur : consultation seule"}
           className={`group relative flex flex-col gap-1 text-left rounded-2xl border p-2 min-h-[94px] sm:min-h-[126px] transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+            canEditPlan ? '' : 'cursor-default'
+          } ${
             isToday
               ? 'border-primary/50 ring-2 ring-primary/40 bg-card'
               : dayData
-                ? 'border-border/70 bg-card hover:border-primary/50 hover:shadow-md'
-                : 'border-border/50 bg-muted/30 hover:border-primary/50'
+                ? `border-border/70 bg-card ${canEditPlan ? 'hover:border-primary/50 hover:shadow-md' : ''}`
+                : `border-border/50 bg-muted/30 ${canEditPlan ? 'hover:border-primary/50' : ''}`
           }`}
         >
           <div className="flex items-center justify-between">
@@ -468,7 +507,9 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
             >
               {day}
             </span>
-            <Pencil className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary" />
+            {canEditPlan && (
+              <Pencil className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary" />
+            )}
           </div>
           {dayData ? (
             <div className="flex flex-1 flex-col gap-1">
@@ -482,9 +523,13 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
                 {dayData.totalDayCost} FCFA
               </div>
             </div>
-          ) : (
+          ) : canEditPlan ? (
             <span className="mt-auto text-[11px] font-medium text-muted-foreground/70 group-hover:text-primary">
               + Ajouter
+            </span>
+          ) : (
+            <span className="mt-auto text-[11px] font-medium text-muted-foreground/50">
+              —
             </span>
           )}
         </button>
@@ -666,7 +711,7 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
               {generatingMode === 'strict' ? 'Génération...' : 'Plan Mensuel IA (budget strict)'}
             </Button>
 
-            {generatedPlan && (
+            {generatedPlan && canEditPlan && (
               <Button onClick={saveMonthlyPlan} disabled={loading || generatingMode !== null} variant="outline" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 {loadedPlanId ? 'Mettre à jour le Plan' : 'Sauvegarder le Plan'}
@@ -707,9 +752,11 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
               </div>
             </CardTitle>
             <CardDescription>
-              {loadedPlanId
-                ? 'Plan sauvegardé — cliquez sur une date pour modifier son menu, puis « Mettre à jour le Plan ».'
-                : 'Cliquez sur une date pour ajuster son menu avant de sauvegarder.'}
+              {!canEditPlan
+                ? `Plan généré par ${nameFor(loadedPlanOwnerId ?? '')} — consultation seule. Générez le vôtre pour l'adapter.`
+                : loadedPlanId
+                  ? 'Plan sauvegardé — cliquez sur une date pour modifier son menu, puis « Mettre à jour le Plan ».'
+                  : 'Cliquez sur une date pour ajuster son menu avant de sauvegarder.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -735,17 +782,30 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
         <CardHeader>
           <CardTitle>Plans Mensuels Sauvegardés</CardTitle>
           <CardDescription>
-            Vos plans de menus précédemment générés et sauvegardés
+            Les plans de la communauté. Vous pouvez tous les consulter, mais seul
+            leur auteur peut les modifier.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {monthlyPlans.length === 0 ? (
+        <CardContent className="space-y-4">
+          <Select value={planFilter} onValueChange={(v) => setPlanFilter(v as 'all' | 'mine')}>
+            <SelectTrigger className="w-full md:w-[280px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les plans ({monthlyPlans.length})</SelectItem>
+              <SelectItem value="mine">Mes plans ({myPlansCount})</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {visiblePlans.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              Aucun plan mensuel sauvegardé. Générez votre premier plan !
+              {planFilter === 'mine'
+                ? 'Vous n’avez encore sauvegardé aucun plan. Générez votre premier plan !'
+                : 'Aucun plan mensuel sauvegardé pour le moment.'}
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {monthlyPlans.map((plan) => (
+              {visiblePlans.map((plan) => (
                 <Card
                   key={plan.id}
                   onClick={() => openSavedPlan(plan)}
@@ -771,6 +831,12 @@ export const MenuGenerator: React.FC<{ onChanged?: () => void }> = ({ onChanged 
                         <DollarSign className="h-3 w-3" />
                         Budget: {plan.budget_min} - {plan.budget_max} FCFA
                       </div>
+                      {!isOwnPlan(plan) && (
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          Plan de {nameFor(plan.user_id)} · lecture seule
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
