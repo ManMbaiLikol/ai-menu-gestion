@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { AuthForm } from '@/components/AuthForm';
 // Imports statiques (pas d'import() dynamique) pour rester compatible avec les
@@ -73,12 +73,28 @@ const Index = () => {
   });
   const [plans, setPlans] = useState<MonthlyPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
+  // Vrai dès que l'utilisateur a choisi un onglet lui-même : la bascule
+  // automatique vers « Admin » ne doit jamais écraser sa navigation.
+  const tabChosenByUser = useRef(false);
 
   useEffect(() => {
     if (user) {
       loadDashboard();
     }
   }, [user]);
+
+  // Le rôle n'est résolu qu'après le premier rendu : l'admin atterrit donc sur
+  // son tableau de bord dès que `isAdmin` bascule, et non au montage.
+  useEffect(() => {
+    if (isAdmin && !tabChosenByUser.current) {
+      setActiveTab(ADMIN_NAV_ITEM.value);
+    }
+  }, [isAdmin]);
+
+  const selectTab = (value: string) => {
+    tabChosenByUser.current = true;
+    setActiveTab(value);
+  };
 
   const loadDashboard = async () => {
     try {
@@ -282,7 +298,7 @@ const Index = () => {
         </div>
 
         {/* Navigation Tabs */}
-        <Tabs value={currentTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={currentTab} onValueChange={selectTab} className="space-y-6">
           {/* Onglets — barre supérieure (tablette / ordinateur) */}
           <TabsList
             style={navColumns}
@@ -462,7 +478,7 @@ const Index = () => {
               <button
                 key={value}
                 type="button"
-                onClick={() => setActiveTab(value)}
+                onClick={() => selectTab(value)}
                 aria-current={active ? 'page' : undefined}
                 className="flex min-w-0 flex-col items-center gap-1 pt-2 pb-1.5 focus:outline-none"
               >
