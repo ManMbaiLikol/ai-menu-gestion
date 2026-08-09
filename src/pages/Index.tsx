@@ -7,6 +7,7 @@ import { MenuUpload } from '@/components/MenuUpload';
 import { MenuGenerator } from '@/components/MenuGenerator';
 import { PriceManager } from '@/components/PriceManager';
 import { MenuLibrary } from '@/components/MenuLibrary';
+import { AdminDashboard } from '@/components/AdminDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { InstallButton } from '@/components/InstallButton';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -25,7 +26,8 @@ import {
   TrendingUp,
   Shuffle,
   Camera,
-  Sparkles
+  Sparkles,
+  Shield
 } from 'lucide-react';
 
 interface MonthlyPlan {
@@ -57,8 +59,11 @@ const NAV_ITEMS = [
   { value: 'calendar', label: 'Calendrier', icon: Calendar },
 ] as const;
 
+// Onglet supplémentaire, ajouté seulement pour les administrateurs.
+const ADMIN_NAV_ITEM = { value: 'admin', label: 'Admin', icon: Shield } as const;
+
 const Index = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('upload');
   const [stats, setStats] = useState<DashboardStats>({
     menusCount: 0,
@@ -206,6 +211,12 @@ const Index = () => {
 
   const firstName = (user.user_metadata?.full_name || user.email || '').split(' ')[0].split('@')[0];
 
+  const navItems = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : [...NAV_ITEMS];
+  // Le rôle est résolu après le premier rendu : si l'onglet actif disparaît
+  // (droits retirés), on retombe sur le premier onglet plutôt que sur du vide.
+  const currentTab = navItems.some(i => i.value === activeTab) ? activeTab : NAV_ITEMS[0].value;
+  const navColumns = { gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` };
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -271,10 +282,13 @@ const Index = () => {
         </div>
 
         {/* Navigation Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={currentTab} onValueChange={setActiveTab} className="space-y-6">
           {/* Onglets — barre supérieure (tablette / ordinateur) */}
-          <TabsList className="hidden md:grid w-full grid-cols-5 h-auto bg-card shadow-warm rounded-2xl p-1.5 gap-1">
-            {NAV_ITEMS.map(({ value, label, icon: Icon }) => (
+          <TabsList
+            style={navColumns}
+            className="hidden md:grid w-full h-auto bg-card shadow-warm rounded-2xl p-1.5 gap-1"
+          >
+            {navItems.map(({ value, label, icon: Icon }) => (
               <TabsTrigger
                 key={value}
                 value={value}
@@ -301,6 +315,10 @@ const Index = () => {
 
           <TabsContent value="prices" className="space-y-6">
             <PriceManager onChanged={loadDashboard} />
+          </TabsContent>
+
+          <TabsContent value="admin" className="space-y-6">
+            <AdminDashboard />
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-6">
@@ -437,16 +455,16 @@ const Index = () => {
 
       {/* Navigation basse — style appli mobile (téléphone uniquement) */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border/60 bg-card/90 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
-        <div className="grid grid-cols-5">
-          {NAV_ITEMS.map(({ value, label, icon: Icon }) => {
-            const active = activeTab === value;
+        <div className="grid" style={navColumns}>
+          {navItems.map(({ value, label, icon: Icon }) => {
+            const active = currentTab === value;
             return (
               <button
                 key={value}
                 type="button"
                 onClick={() => setActiveTab(value)}
                 aria-current={active ? 'page' : undefined}
-                className="flex flex-col items-center gap-1 pt-2 pb-1.5 focus:outline-none"
+                className="flex min-w-0 flex-col items-center gap-1 pt-2 pb-1.5 focus:outline-none"
               >
                 <span
                   className={`flex h-9 w-12 items-center justify-center rounded-full transition-colors ${
@@ -456,7 +474,7 @@ const Index = () => {
                   <Icon className="h-5 w-5" />
                 </span>
                 <span
-                  className={`text-[10px] font-semibold ${
+                  className={`w-full truncate px-0.5 text-center text-[10px] font-semibold ${
                     active ? 'text-primary' : 'text-muted-foreground'
                   }`}
                 >

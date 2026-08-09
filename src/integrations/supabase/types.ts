@@ -288,11 +288,84 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      admin_activity_feed: {
+        Args: { p_limit?: number }
+        Returns: {
+          actor_id: string
+          actor_name: string
+          kind: string
+          label: string
+          occurred_at: string
+        }[]
+      }
+      admin_monthly_activity: {
+        Args: { p_months?: number }
+        Returns: {
+          bucket: string
+          menus: number
+          plans: number
+          price_updates: number
+          signups: number
+        }[]
+      }
+      admin_overview: {
+        Args: never
+        Returns: {
+          avg_inflation: number
+          avg_menu_cost: number
+          ingredients_total: number
+          menus_total: number
+          plans_total: number
+          price_updates: number
+          users_active_30d: number
+          users_new_30d: number
+          users_total: number
+        }[]
+      }
+      admin_user_activity: {
+        Args: never
+        Returns: {
+          admin_flag: boolean
+          email: string
+          full_name: string
+          id: string
+          ingredients_count: number
+          last_activity: string
+          last_sign_in_at: string
+          menus_count: number
+          plans_count: number
+          price_updates: number
+          signed_up_at: string
+          username: string
+        }[]
+      }
+      is_admin: { Args: { uid?: string }; Returns: boolean }
       recompute_menu_item: { Args: { p_item: string }; Returns: undefined }
     }
     Enums: {

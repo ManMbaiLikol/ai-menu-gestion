@@ -7,6 +7,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  /** Rôle administrateur, résolu depuis `user_roles` à chaque changement de session. */
+  isAdmin: boolean;
   signUp: (email: string, password: string, userData?: { username?: string; full_name?: string }) => Promise<{ data: any; error: any }>;
   signIn: (email: string, password: string) => Promise<{ data: any; error: any }>;
   signOut: () => Promise<void>;
@@ -26,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener
@@ -46,6 +49,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Le rôle n'est qu'un indicateur d'affichage : la RLS reste l'autorité, donc
+  // un échec de lecture se traduit simplement par « pas admin ».
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setIsAdmin(!!data);
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
 
   const signUp = async (email: string, password: string, userData?: { username?: string; full_name?: string }) => {
     try {
@@ -123,6 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     loading,
+    isAdmin,
     signUp,
     signIn,
     signOut,
